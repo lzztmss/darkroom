@@ -8,7 +8,9 @@
     "version": "1",
     "prompt_version": "mock-v1"
   },
-  "overall_score": 79,
+  "overall_score": 78,
+  "overall_score_method": "mean_of_dimensions_v1",
+  "model_overall_score": 79,
   "score_summary": "总分只作索引；车列、弯轨与远处聚落形成的层次关系比单个主体是否突出更重要。",
   "dimension_scores": [
     {

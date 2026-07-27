@@ -8,7 +8,9 @@
     "version": "1",
     "prompt_version": "mock-v1"
   },
-  "overall_score": 88,
+  "overall_score": 89,
+  "overall_score_method": "mean_of_dimensions_v1",
+  "model_overall_score": 88,
   "score_summary": "总分只作快速索引；这张照片的价值更在河流、山体和云层形成的空间递进。",
   "dimension_scores": [
     {

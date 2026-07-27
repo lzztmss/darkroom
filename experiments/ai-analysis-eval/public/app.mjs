@@ -142,7 +142,11 @@ function renderEvaluation() {
 
 function renderResult(validation) {
   byId("overall-score").textContent = state.result.overall_score;
-  byId("score-summary").textContent = state.result.score_summary;
+  const rawScore = state.result.model_overall_score;
+  const scoreNote = Number.isInteger(rawScore)
+    ? `总分由五个分项算术平均计算；模型原始总分：${rawScore}。`
+    : "总分由五个分项算术平均计算。";
+  byId("score-summary").textContent = `${state.result.score_summary} ${scoreNote}`;
   byId("dimension-scores").replaceChildren(
     ...state.result.dimension_scores.map((item) => {
       const row = document.createElement("div");

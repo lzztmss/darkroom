@@ -10,6 +10,8 @@
     "photo_id",
     "model",
     "overall_score",
+    "overall_score_method",
+    "model_overall_score",
     "score_summary",
     "dimension_scores",
     "subject_boxes",
@@ -38,6 +40,13 @@
       }
     },
     "overall_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "overall_score_method": { "const": "mean_of_dimensions_v1" },
+    "model_overall_score": {
+      "anyOf": [
+        { "type": "integer", "minimum": 0, "maximum": 100 },
+        { "type": "null" }
+      ]
+    },
     "score_summary": { "type": "string", "minLength": 1 },
     "dimension_scores": {
       "type": "array",

@@ -9,6 +9,13 @@ const DIMENSIONS = [
   "technical",
 ];
 
+export function calculateOverallScore(dimensionScores) {
+  if (!Array.isArray(dimensionScores) || dimensionScores.length === 0) return null;
+  const scores = dimensionScores.map((item) => item?.score);
+  if (scores.some((score) => !Number.isInteger(score))) return null;
+  return Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+}
+
 function isFiniteNumber(value) {
   return typeof value === "number" && Number.isFinite(value);
 }
@@ -82,10 +89,23 @@ export function validateAnalysisResult(input) {
     "evaluation_id",
     "photo_id",
     "score_summary",
+    "overall_score_method",
   ]) {
     if (typeof input[key] !== "string" || !input[key].trim()) {
       errors.push(`${key} 不能为空`);
     }
+  }
+
+  if (input.overall_score_method !== "mean_of_dimensions_v1") {
+    errors.push("overall_score_method 必须是 mean_of_dimensions_v1");
+  }
+  if (
+    input.model_overall_score !== null &&
+    (!Number.isInteger(input.model_overall_score) ||
+      input.model_overall_score < 0 ||
+      input.model_overall_score > 100)
+  ) {
+    errors.push("model_overall_score 必须是 null 或 0 到 100 的整数");
   }
 
   if (
@@ -130,6 +150,10 @@ export function validateAnalysisResult(input) {
         errors.push(`${path}.confidence 必须是 0 到 1`);
       }
     });
+    const calculated = calculateOverallScore(input.dimension_scores);
+    if (calculated !== null && input.overall_score !== calculated) {
+      errors.push(`overall_score 与分项分数计算值 ${calculated} 不一致`);
+    }
   }
 
   for (const collection of ["subject_boxes", "leading_lines", "crop_boxes"]) {

@@ -49,6 +49,8 @@ node --env-file=experiments/ai-analysis-eval/.env \
 
 成功后会生成一个带 `-qwen` 后缀的结果 JSON。打开实验页，点击“导入当前照片 JSON”，
 选择这个文件即可查看真实模型的点评和坐标。脚本会在保存前运行本地 schema、边界、
+并把五个分项分数的算术平均作为最终 `overall_score`；模型原始总分保存在
+`model_overall_score`，便于发现模型自报分数与可复算分数的偏差。
 低置信度和裁切损失校验；不合格结果不会保存。
 
 ## 目录

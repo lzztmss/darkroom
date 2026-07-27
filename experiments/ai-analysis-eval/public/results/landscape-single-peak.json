@@ -8,7 +8,9 @@
     "version": "1",
     "prompt_version": "mock-v1"
   },
-  "overall_score": 82,
+  "overall_score": 81,
+  "overall_score_method": "mean_of_dimensions_v1",
+  "model_overall_score": 82,
   "score_summary": "总分仅供比较；单峰的稳定轮廓、湖面横线与低云共同形成克制的空间关系。",
   "dimension_scores": [
     {

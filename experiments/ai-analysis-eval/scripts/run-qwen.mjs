@@ -2,7 +2,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { validateAnalysisResult } from "../src/validator.mjs";
+import {
+  calculateOverallScore,
+  validateAnalysisResult,
+} from "../src/validator.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const publicRoot = resolve(root, "public");
@@ -92,6 +95,14 @@ try {
 } catch {
   throw new Error(`模型返回的内容不是 JSON：${content.slice(0, 500)}`);
 }
+
+const modelOverallScore = result.overall_score;
+result.model_overall_score = Number.isInteger(modelOverallScore)
+  ? modelOverallScore
+  : null;
+result.overall_score_method = "mean_of_dimensions_v1";
+const calculatedOverallScore = calculateOverallScore(result.dimension_scores);
+if (calculatedOverallScore !== null) result.overall_score = calculatedOverallScore;
 
 const validation = validateAnalysisResult(result);
 const outputPath = resolve(

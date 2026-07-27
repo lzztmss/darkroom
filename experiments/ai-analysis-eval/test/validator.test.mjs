@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   collectRenderableAnnotations,
+  calculateOverallScore,
   validateAnalysisResult,
 } from "../src/validator.mjs";
 
@@ -18,6 +19,8 @@ function validResult() {
       prompt_version: "mock-v1",
     },
     overall_score: 78,
+    overall_score_method: "mean_of_dimensions_v1",
+    model_overall_score: null,
     score_summary: "总分只用于快速索引，画面仍有其他合理解读。",
     dimension_scores: [
       {
@@ -121,6 +124,19 @@ function validResult() {
 test("accepts a complete result with explicit omitted geometry", () => {
   const result = validateAnalysisResult(validResult());
   assert.deepEqual(result.errors, []);
+});
+
+test("calculates a transparent overall score from dimension scores", () => {
+  const input = validResult();
+  input.overall_score = calculateOverallScore(input.dimension_scores);
+  assert.equal(input.overall_score, 78);
+});
+
+test("rejects an overall score that does not match the declared method", () => {
+  const input = validResult();
+  input.overall_score = 79;
+  const result = validateAnalysisResult(input);
+  assert.ok(result.errors.some((error) => error.includes("overall_score 与分项")));
 });
 
 test("rejects drawing a low-confidence annotation", () => {
