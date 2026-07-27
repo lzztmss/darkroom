@@ -1,0 +1,123 @@
+{
+  "schema_version": "1.0.0",
+  "evaluation_id": "mock-railway-layered-scene-v1",
+  "photo_id": "railway-layered-scene",
+  "model": {
+    "provider": "mock",
+    "name": "human-authored-calibration",
+    "version": "1",
+    "prompt_version": "mock-v1"
+  },
+  "overall_score": 79,
+  "score_summary": "总分只作索引；车列、弯轨与远处聚落形成的层次关系比单个主体是否突出更重要。",
+  "dimension_scores": [
+    {
+      "dimension": "composition",
+      "score": 84,
+      "evidence": "两组车列与弯曲轨道占据下半部，远处建筑形成第二层。",
+      "suggestion": "保留车列的完整长度，不把画面裁成单节车厢。",
+      "confidence": 0.87
+    },
+    {
+      "dimension": "light",
+      "score": 72,
+      "evidence": "天空、地面与车辆亮度接近，主体分离主要依赖轮廓。",
+      "suggestion": "数字化后可轻微增加车列局部对比，并避免天空出现断层。",
+      "confidence": 0.78
+    },
+    {
+      "dimension": "color_tone",
+      "score": 76,
+      "evidence": "灰阶偏窄，车厢下部仍保留暗部层次。",
+      "suggestion": "调整黑位时以车轮和车厢接缝仍可辨识为上限。",
+      "confidence": 0.79
+    },
+    {
+      "dimension": "narrative",
+      "score": 82,
+      "evidence": "车列、轨道与远处聚落共同说明交通设施与环境关系。",
+      "suggestion": "文字说明可强调场景关系，而不是把车辆称作孤立主角。",
+      "confidence": 0.84
+    },
+    {
+      "dimension": "technical",
+      "score": 75,
+      "evidence": "历史影像表面有损耗，但主要结构仍可辨认。",
+      "suggestion": "只修复扫描污点，不移除现场真实物体。",
+      "confidence": 0.81
+    }
+  ],
+  "subject_boxes": [
+    {
+      "id": "subject-trains",
+      "label": "两组铁路车辆",
+      "decision": "draw",
+      "box": { "x": 0.17, "y": 0.64, "width": 0.79, "height": 0.25 },
+      "rationale": "两组车列共同构成下方主要视觉重量，单框一节车厢会误解场景。",
+      "confidence": 0.86,
+      "omit_reason": null
+    }
+  ],
+  "leading_lines": [
+    {
+      "id": "line-track",
+      "label": "弯曲轨道",
+      "decision": "draw",
+      "points": [[0.98, 0.65], [0.77, 0.66], [0.62, 0.61], [0.54, 0.55]],
+      "rationale": "右侧弧形轨道从边缘进入并向远处建筑方向收束。",
+      "confidence": 0.78,
+      "omit_reason": null
+    }
+  ],
+  "crop_boxes": [
+    {
+      "id": "crop-top",
+      "label": "减少少量空天空",
+      "decision": "draw",
+      "box": { "x": 0.015, "y": 0.12, "width": 0.97, "height": 0.865 },
+      "rationale": "收掉少量空天空，同时保留远景聚落与全部车列。",
+      "confidence": 0.74,
+      "omit_reason": null,
+      "loss_ratio": 0.161,
+      "preserves_intent": "车辆、轨道和聚落三层关系保持完整。"
+    }
+  ],
+  "observations": [
+    "两组铁路车辆横向分布在画面下半部。",
+    "一条弯曲轨道从右侧进入并向画面中部延伸。",
+    "远处有分散建筑，天空占画面接近一半。"
+  ],
+  "interpretations": [
+    "车列的重复节奏与弯轨的方向变化共同组织下半部。",
+    "大面积天空提供历史场景的环境尺度，但也降低车辆视觉占比。"
+  ],
+  "subjective_judgments": [
+    {
+      "judgment": "车辆没有被夸张突出，使画面更像环境记录而非机械展示。",
+      "alternative_reading": "也可认为天空比例过大，削弱了车列细节。"
+    }
+  ],
+  "suggestions": [
+    {
+      "type": "crop_review",
+      "action": "只从上方收掉约一成画面，不裁断左右车列。",
+      "why": "可提高场景密度，同时保持交通设施与聚落关系。",
+      "verification": "开关裁切预览，确认右侧轨道入口和远景建筑仍在。",
+      "confidence": 0.76
+    },
+    {
+      "type": "postprocess",
+      "action": "轻微提高车列局部对比，保持天空平滑。",
+      "why": "车辆细节目前主要依赖较弱轮廓。",
+      "verification": "缩小到手机宽度后检查两组车列是否仍能分别辨认。",
+      "confidence": 0.72
+    }
+  ],
+  "confidence": {
+    "overall": 0.81,
+    "subject_boxes": 0.86,
+    "leading_lines": 0.78,
+    "crop_boxes": 0.74
+  },
+  "safety_flags": []
+}

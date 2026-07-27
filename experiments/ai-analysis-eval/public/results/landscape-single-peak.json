@@ -1,0 +1,116 @@
+{
+  "schema_version": "1.0.0",
+  "evaluation_id": "mock-landscape-single-peak-v1",
+  "photo_id": "landscape-single-peak",
+  "model": {
+    "provider": "mock",
+    "name": "human-authored-calibration",
+    "version": "1",
+    "prompt_version": "mock-v1"
+  },
+  "overall_score": 82,
+  "score_summary": "总分仅供比较；单峰的稳定轮廓、湖面横线与低云共同形成克制的空间关系。",
+  "dimension_scores": [
+    {
+      "dimension": "composition",
+      "score": 86,
+      "evidence": "主峰位于中部偏左，湖岸横线稳定了大面积三角形山体。",
+      "suggestion": "保留右侧山坡作为空间收束，不必把主峰机械移到三分线。",
+      "confidence": 0.89
+    },
+    {
+      "dimension": "light",
+      "score": 78,
+      "evidence": "云雾和山体亮度接近，山顶部分轮廓变弱。",
+      "suggestion": "若重拍，可等待云层移动后比较峰顶分离度。",
+      "confidence": 0.8
+    },
+    {
+      "dimension": "color_tone",
+      "score": 81,
+      "evidence": "灰阶集中在中间调，湖面和积雪提供少量高光。",
+      "suggestion": "轻微增加局部中间调对比，并检查云雾是否仍有层次。",
+      "confidence": 0.82
+    },
+    {
+      "dimension": "narrative",
+      "score": 76,
+      "evidence": "山峰、云雾与平静湖面形成天气正在变化的线索。",
+      "suggestion": "若想强化天气感，可等待云雾刚好掠过峰顶时再拍一张。",
+      "confidence": 0.72
+    },
+    {
+      "dimension": "technical",
+      "score": 83,
+      "evidence": "主峰下部、树林和湖岸仍有清楚边界。",
+      "suggestion": "保留当前湖面细节，避免整体提对比后出现硬边。",
+      "confidence": 0.84
+    }
+  ],
+  "subject_boxes": [
+    {
+      "id": "subject-peak",
+      "label": "主峰",
+      "decision": "draw",
+      "box": { "x": 0.02, "y": 0.2, "width": 0.78, "height": 0.59 },
+      "rationale": "主峰占据最大的连续实体区域，轮廓相对明确。",
+      "confidence": 0.88,
+      "omit_reason": null
+    }
+  ],
+  "leading_lines": [
+    {
+      "id": "line-none",
+      "label": "无可靠引导线",
+      "decision": "omit",
+      "points": null,
+      "rationale": "湖岸是稳定横向分隔，不构成把视线导向某点的连续路径。",
+      "confidence": 0.41,
+      "omit_reason": "没有足够明确的线性视觉路径。"
+    }
+  ],
+  "crop_boxes": [
+    {
+      "id": "crop-scan",
+      "label": "保守清理边缘",
+      "decision": "draw",
+      "box": { "x": 0.008, "y": 0.01, "width": 0.984, "height": 0.975 },
+      "rationale": "只清理扫描边缘，不改变湖面和右侧山坡比例。",
+      "confidence": 0.87,
+      "omit_reason": null,
+      "loss_ratio": 0.041,
+      "preserves_intent": "保留山峰的稳定体量和湖面的水平基座。"
+    }
+  ],
+  "observations": [
+    "一座三角形主峰占据画面中部偏左。",
+    "低云遮住部分峰顶，湖面横贯画面下方。",
+    "右侧有一段较暗山坡进入画面。"
+  ],
+  "interpretations": [
+    "湖面的水平线抵消了主峰斜边的上升感，使构图保持稳定。",
+    "云雾削弱峰顶清晰度，也提供了天气变化的时间线索。"
+  ],
+  "subjective_judgments": [
+    {
+      "judgment": "低对比让山峰显得沉静，而不是宏伟张扬。",
+      "alternative_reading": "也可认为峰顶与天空分离不足，削弱了主峰力量。"
+    }
+  ],
+  "suggestions": [
+    {
+      "type": "next_shoot",
+      "action": "在原机位等待云层离开峰顶一小段距离时再拍一张。",
+      "why": "可比较清晰轮廓与云雾包裹两种表达。",
+      "verification": "并排查看两张照片，判断哪张更符合沉静或力量的意图。",
+      "confidence": 0.79
+    }
+  ],
+  "confidence": {
+    "overall": 0.84,
+    "subject_boxes": 0.88,
+    "leading_lines": 0.41,
+    "crop_boxes": 0.87
+  },
+  "safety_flags": []
+}

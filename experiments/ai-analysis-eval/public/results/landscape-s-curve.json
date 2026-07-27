@@ -1,0 +1,123 @@
+{
+  "schema_version": "1.0.0",
+  "evaluation_id": "mock-landscape-s-curve-v1",
+  "photo_id": "landscape-s-curve",
+  "model": {
+    "provider": "mock",
+    "name": "human-authored-calibration",
+    "version": "1",
+    "prompt_version": "mock-v1"
+  },
+  "overall_score": 88,
+  "score_summary": "总分只作快速索引；这张照片的价值更在河流、山体和云层形成的空间递进。",
+  "dimension_scores": [
+    {
+      "dimension": "composition",
+      "score": 93,
+      "evidence": "河流从左下进入，连续转弯后指向中景山体，前中后景层次清楚。",
+      "suggestion": "保留河流完整转弯，不必为了套三分法移动山峰。",
+      "confidence": 0.94
+    },
+    {
+      "dimension": "light",
+      "score": 87,
+      "evidence": "亮河面与较暗的树林、山体形成可辨识的明度路径。",
+      "suggestion": "若重新拍摄，可比较云层稍薄时山体纹理是否更清楚。",
+      "confidence": 0.88
+    },
+    {
+      "dimension": "color_tone",
+      "score": 90,
+      "evidence": "黑白影调从亮河面过渡到深色山体，暗部仍保留层次。",
+      "suggestion": "后期只小幅调整中间调，避免把云层和树林压成纯黑。",
+      "confidence": 0.91
+    },
+    {
+      "dimension": "narrative",
+      "score": 84,
+      "evidence": "河流把观看过程从近景带向远山，形成抵达感。",
+      "suggestion": "把它理解为空间体验而非单一主体肖像，更符合画面结构。",
+      "confidence": 0.8
+    },
+    {
+      "dimension": "technical",
+      "score": 89,
+      "evidence": "河岸、树林和山脊边缘均可辨识，曝光覆盖较宽。",
+      "suggestion": "数字化版本可检查左侧边缘划痕，但不要抹除真实景物。",
+      "confidence": 0.86
+    }
+  ],
+  "subject_boxes": [
+    {
+      "id": "subject-mountains",
+      "label": "山体不是唯一主体",
+      "decision": "omit",
+      "box": null,
+      "rationale": "河流、树林和山体共同构成观看路径，用单一矩形会误导层次关系。",
+      "confidence": 0.48,
+      "omit_reason": "不存在适合单框表达的唯一主体。"
+    }
+  ],
+  "leading_lines": [
+    {
+      "id": "line-river",
+      "label": "河流的 S 形视觉路径",
+      "decision": "draw",
+      "points": [[0.36, 0.96], [0.58, 0.82], [0.37, 0.68], [0.68, 0.52]],
+      "rationale": "高亮河面形成连续弯曲路径，并把视线带向山脚。",
+      "confidence": 0.94,
+      "omit_reason": null
+    }
+  ],
+  "crop_boxes": [
+    {
+      "id": "crop-edge",
+      "label": "只去除扫描边缘",
+      "decision": "draw",
+      "box": { "x": 0.012, "y": 0.012, "width": 0.976, "height": 0.972 },
+      "rationale": "只收掉扫描白边，不改变河流与山体关系。",
+      "confidence": 0.9,
+      "omit_reason": null,
+      "loss_ratio": 0.051,
+      "preserves_intent": "完整保留河流转弯、山体和压低的云层。"
+    }
+  ],
+  "observations": [
+    "一条亮色河流从画面左下弯向中右部。",
+    "山体横贯中上部，深色云层压在山峰上方。",
+    "近景深色树木与中景较亮树林形成前后层次。"
+  ],
+  "interpretations": [
+    "河流的连续转弯承担主要视觉组织作用，而不是装饰性线条。",
+    "上方深云与下方亮河形成重量对照，使远山仍有压迫感。"
+  ],
+  "subjective_judgments": [
+    {
+      "judgment": "宽阔层次让观看过程带有缓慢展开的庄重感。",
+      "alternative_reading": "也可认为深色天空占比偏大，使河谷显得过于戏剧化。"
+    }
+  ],
+  "suggestions": [
+    {
+      "type": "crop_review",
+      "action": "仅裁去扫描白边，不收紧河流两侧。",
+      "why": "河流转弯需要左右空间才能维持完整路径。",
+      "verification": "开关裁切预览，确认四个转折点都仍在画面内。",
+      "confidence": 0.91
+    },
+    {
+      "type": "postprocess",
+      "action": "小幅提亮中景树林，并保持云层高光不过曝。",
+      "why": "这能增强前中后景分离，而不改变真实内容。",
+      "verification": "缩小预览后检查河流、树林和山体是否仍能分成三层。",
+      "confidence": 0.78
+    }
+  ],
+  "confidence": {
+    "overall": 0.9,
+    "subject_boxes": 0.48,
+    "leading_lines": 0.94,
+    "crop_boxes": 0.9
+  },
+  "safety_flags": []
+}

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI 摄影分析能力验证</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">离线固定样例 · 非正式产品</p>
+        <h1>AI 摄影分析能力验证</h1>
+      </div>
+      <div class="top-actions">
+        <label class="file-button">
+          导入当前照片 JSON
+          <input id="json-file" type="file" accept="application/json,.json" />
+        </label>
+        <button id="export-csv" type="button">导出人工评估 CSV</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <div class="dataset-summary" id="dataset-summary"></div>
+        <nav aria-label="固定评测照片">
+          <ol id="photo-list" class="photo-list"></ol>
+        </nav>
+      </aside>
+
+      <section class="workspace">
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+
+        <div class="photo-heading">
+          <div>
+            <p id="photo-context" class="eyebrow"></p>
+            <h2 id="photo-title"></h2>
+            <p id="photo-challenge" class="muted"></p>
+          </div>
+          <p id="photo-rights" class="rights"></p>
+        </div>
+
+        <div class="visual-grid">
+          <div>
+            <div id="photo-stage" class="photo-stage">
+              <img id="photo" alt="" />
+              <svg
+                id="overlay"
+                viewBox="0 0 1 1"
+                preserveAspectRatio="none"
+                aria-label="AI 坐标标注层"
+              ></svg>
+              <div id="missing-photo" class="missing-photo" hidden></div>
+            </div>
+            <div class="layer-controls" aria-label="标注图层">
+              <label><input type="checkbox" data-layer="subject" checked /> 主体框</label>
+              <label><input type="checkbox" data-layer="line" checked /> 引导线</label>
+              <label><input type="checkbox" data-layer="crop" checked /> 裁切框</label>
+            </div>
+            <ul id="annotation-notes" class="annotation-notes"></ul>
+          </div>
+
+          <aside class="score-panel">
+            <div class="overall">
+              <span>快速索引</span>
+              <strong id="overall-score">—</strong>
+              <small>不单独定义照片好坏</small>
+            </div>
+            <p id="score-summary"></p>
+            <div id="dimension-scores" class="dimension-scores"></div>
+            <details>
+              <summary>校验信息</summary>
+              <ul id="validation-errors"></ul>
+            </details>
+          </aside>
+        </div>
+
+        <div class="critique-grid">
+          <article>
+            <h3>可直接观察的事实</h3>
+            <ul id="observations"></ul>
+          </article>
+          <article>
+            <h3>基于摄影知识的解释</h3>
+            <ul id="interpretations"></ul>
+          </article>
+          <article>
+            <h3>主观判断与替代解读</h3>
+            <div id="judgments"></div>
+          </article>
+          <article>
+            <h3>可执行建议</h3>
+            <div id="suggestions"></div>
+          </article>
+        </div>
+
+        <section class="evaluation">
+          <div>
+            <p class="eyebrow">人工盲评 · 0 / 1 / 2</p>
+            <h2>这次输出是否真的可靠？</h2>
+          </div>
+          <div id="evaluation-fields" class="evaluation-fields"></div>
+          <label class="notes-field">
+            严重错误与备注
+            <textarea
+              id="evaluation-notes"
+              rows="4"
+              placeholder="记录编造事实、乱画、裁断主体、模板化表达等。"
+            ></textarea>
+          </label>
+          <button id="save-evaluation" type="button">保存本照片评估</button>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="app.mjs"></script>
+  </body>
+</html>

@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://photo-mentor.local/schemas/analysis-result-1.0.0.json",
+  "title": "AI 摄影分析能力验证结果",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evaluation_id",
+    "photo_id",
+    "model",
+    "overall_score",
+    "score_summary",
+    "dimension_scores",
+    "subject_boxes",
+    "leading_lines",
+    "crop_boxes",
+    "observations",
+    "interpretations",
+    "subjective_judgments",
+    "suggestions",
+    "confidence",
+    "safety_flags"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "evaluation_id": { "type": "string", "minLength": 1 },
+    "photo_id": { "type": "string", "minLength": 1 },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "name", "version", "prompt_version"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "prompt_version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "overall_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "score_summary": { "type": "string", "minLength": 1 },
+    "dimension_scores": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": { "$ref": "#/$defs/dimensionScore" }
+    },
+    "subject_boxes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/subjectDecision" }
+    },
+    "leading_lines": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/lineDecision" }
+    },
+    "crop_boxes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "items": { "$ref": "#/$defs/cropDecision" }
+    },
+    "observations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "interpretations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "subjective_judgments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["judgment", "alternative_reading"],
+        "properties": {
+          "judgment": { "type": "string", "minLength": 1 },
+          "alternative_reading": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "suggestions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/suggestion" }
+    },
+    "confidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overall", "subject_boxes", "leading_lines", "crop_boxes"],
+      "properties": {
+        "overall": { "$ref": "#/$defs/unit" },
+        "subject_boxes": { "$ref": "#/$defs/unit" },
+        "leading_lines": { "$ref": "#/$defs/unit" },
+        "crop_boxes": { "$ref": "#/$defs/unit" }
+      }
+    },
+    "safety_flags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "unit": { "type": "number", "minimum": 0, "maximum": 1 },
+    "box": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": { "$ref": "#/$defs/unit" },
+        "y": { "$ref": "#/$defs/unit" },
+        "width": { "$ref": "#/$defs/unit" },
+        "height": { "$ref": "#/$defs/unit" }
+      }
+    },
+    "point": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/unit" },
+        { "$ref": "#/$defs/unit" }
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "dimensionScore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension", "score", "evidence", "suggestion", "confidence"],
+      "properties": {
+        "dimension": {
+          "enum": ["composition", "light", "color_tone", "narrative", "technical"]
+        },
+        "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "evidence": { "type": "string", "minLength": 1 },
+        "suggestion": { "type": "string", "minLength": 1 },
+        "confidence": { "$ref": "#/$defs/unit" }
+      }
+    },
+    "baseDecision": {
+      "type": "object",
+      "required": [
+        "id",
+        "label",
+        "decision",
+        "rationale",
+        "confidence",
+        "omit_reason"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "decision": { "enum": ["draw", "omit"] },
+        "rationale": { "type": "string", "minLength": 1 },
+        "confidence": { "$ref": "#/$defs/unit" },
+        "omit_reason": { "type": ["string", "null"] }
+      }
+    },
+    "subjectDecision": {
+      "allOf": [
+        { "$ref": "#/$defs/baseDecision" },
+        {
+          "type": "object",
+          "required": ["box"],
+          "properties": { "box": { "anyOf": [{ "$ref": "#/$defs/box" }, { "type": "null" }] } }
+        }
+      ]
+    },
+    "lineDecision": {
+      "allOf": [
+        { "$ref": "#/$defs/baseDecision" },
+        {
+          "type": "object",
+          "required": ["points"],
+          "properties": {
+            "points": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 8,
+                  "items": { "$ref": "#/$defs/point" }
+                },
+                { "type": "null" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "cropDecision": {
+      "allOf": [
+        { "$ref": "#/$defs/baseDecision" },
+        {
+          "type": "object",
+          "required": ["box", "loss_ratio", "preserves_intent"],
+          "properties": {
+            "box": { "anyOf": [{ "$ref": "#/$defs/box" }, { "type": "null" }] },
+            "loss_ratio": { "type": "number", "minimum": 0, "maximum": 0.25 },
+            "preserves_intent": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    },
+    "suggestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "action", "why", "verification", "confidence"],
+      "properties": {
+        "type": { "enum": ["next_shoot", "postprocess", "crop_review"] },
+        "action": { "type": "string", "minLength": 1 },
+        "why": { "type": "string", "minLength": 1 },
+        "verification": { "type": "string", "minLength": 1 },
+        "confidence": { "$ref": "#/$defs/unit" }
+      }
+    }
+  }
+}

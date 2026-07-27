@@ -1,0 +1,138 @@
+{
+  "dataset_version": "0.1.0",
+  "description": "12 个固定能力验证槽位；3 张公共领域样例已就绪，9 张等待可核验授权照片。",
+  "photos": [
+    {
+      "id": "landscape-s-curve",
+      "title": "蛇河与提顿山脉",
+      "context": "风光",
+      "challenge": "S 形河流、远山、多个视觉层次",
+      "image_path": "photos/ansel-adams-tetons-snake-river.jpg",
+      "result_path": "results/landscape-s-curve.json",
+      "source": "Ansel Adams, The Tetons and Snake River, 1942; U.S. National Archives",
+      "rights": "Public Domain",
+      "ready": true
+    },
+    {
+      "id": "landscape-single-peak",
+      "title": "双药湖山峰",
+      "context": "风光",
+      "challenge": "单峰、湖面、低对比",
+      "image_path": "photos/ansel-adams-two-medicine-lake.jpg",
+      "result_path": "results/landscape-single-peak.json",
+      "source": "Ansel Adams, Two Medicine Lake, Glacier National Park, 1941–1942; U.S. National Archives",
+      "rights": "Public Domain",
+      "ready": true
+    },
+    {
+      "id": "railway-layered-scene",
+      "title": "亚利桑那铁路车辆",
+      "context": "城市 / 纪实",
+      "challenge": "多车厢、轨道弧线、远景建筑",
+      "image_path": "photos/railway-cars-arizona.jpg",
+      "result_path": "results/railway-layered-scene.json",
+      "source": "Photographer unknown, Atlantic & Pacific Railway, Arizona, c. 1890; U.S. National Archives",
+      "rights": "Public Domain",
+      "ready": true
+    },
+    {
+      "id": "street-single-person",
+      "title": "待补：街头单人物",
+      "context": "街头",
+      "challenge": "单人物、清楚负空间",
+      "image_path": null,
+      "result_path": null,
+      "source": "待补可核验授权来源",
+      "rights": "Pending",
+      "ready": false
+    },
+    {
+      "id": "street-multiple-people",
+      "title": "待补：街头多人物",
+      "context": "街头",
+      "challenge": "多主体、遮挡、边缘人物",
+      "image_path": null,
+      "result_path": null,
+      "source": "待补可核验授权来源",
+      "rights": "Pending",
+      "ready": false
+    },
+    {
+      "id": "street-reflection",
+      "title": "待补：街头反射",
+      "context": "街头",
+      "challenge": "反射与真实空间混合",
+      "image_path": null,
+      "result_path": null,
+      "source": "待补可核验授权来源",
+      "rights": "Pending",
+      "ready": false
+    },
+    {
+      "id": "documentary-occlusion",
+      "title": "待补：纪实遮挡",
+      "context": "纪实",
+      "challenge": "主体被遮挡",
+      "image_path": null,
+      "result_path": null,
+      "source": "待补可核验授权来源",
+      "rights": "Pending",
+      "ready": false
+    },
+    {
+      "id": "urban-symmetry",
+      "title": "待补：城市中轴",
+      "context": "城市空间",
+      "challenge": "中轴、重复结构",
+      "image_path": null,
+      "result_path": null,
+      "source": "待补可核验授权来源",
+      "rights": "Pending",
+      "ready": false
+    },
+    {
+      "id": "urban-diagonal",
+      "title": "待补：城市斜线",
+      "context": "城市空间",
+      "challenge": "强斜线、倾斜地平线",
+      "image_path": null,
+      "result_path": null,
+      "source": "待补可核验授权来源",
+      "rights": "Pending",
+      "ready": false
+    },
+    {
+      "id": "travel-backlight",
+      "title": "待补：旅行逆光",
+      "context": "旅行",
+      "challenge": "逆光剪影、暗部丢失",
+      "image_path": null,
+      "result_path": null,
+      "source": "待补可核验授权来源",
+      "rights": "Pending",
+      "ready": false
+    },
+    {
+      "id": "minimal-small-subject",
+      "title": "待补：极小主体",
+      "context": "日常",
+      "challenge": "极小主体、大面积留白",
+      "image_path": null,
+      "result_path": null,
+      "source": "待补可核验授权来源",
+      "rights": "Pending",
+      "ready": false
+    },
+    {
+      "id": "abstract-no-subject",
+      "title": "待补：无明确主体",
+      "context": "实验 / 抽象",
+      "challenge": "无明确主体与叙事中心",
+      "image_path": null,
+      "result_path": null,
+      "source": "待补可核验授权来源",
+      "rights": "Pending",
+      "ready": false
+    }
+  ]
+}
