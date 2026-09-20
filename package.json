@@ -1,0 +1,15 @@
+{
+  "name": "photo-mentor-cn",
+  "private": true,
+  "scripts": {
+    "start": "./develop/serve",
+    "dev": "./develop/serve",
+    "test:local": "cd develop/app && ./node_modules/.bin/vitest run",
+    "typecheck:local": "cd develop/app && ./node_modules/.bin/tsc --noEmit --incremental false",
+    "lint:local": "cd develop/app && ./node_modules/.bin/eslint .",
+    "build:local": "cd develop/app && ./node_modules/.bin/next build",
+    "eval:test": "node --test experiments/ai-analysis-eval/test/validator.test.mjs",
+    "eval:fixtures": "node experiments/ai-analysis-eval/scripts/validate-fixtures.mjs",
+    "eval:serve": "node experiments/ai-analysis-eval/scripts/serve.mjs"
+  }
+}

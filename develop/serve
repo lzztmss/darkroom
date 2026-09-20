@@ -1,0 +1,25 @@
+#!/bin/zsh
+set -eu
+
+SCRIPT_DIR=${0:A:h}
+PROJECT_ROOT=${SCRIPT_DIR:h}
+NODE_BIN=/Users/ken/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node
+ENV_FILE=$PROJECT_ROOT/experiments/ai-analysis-eval/.env
+PORT=${PHOTO_MENTOR_LOCAL_PORT:-4174}
+
+if [[ ! -x $NODE_BIN ]]; then
+  echo "找不到项目使用的 Node.js。请从 Codex 中启动，或更新 develop/serve 里的 NODE_BIN。"
+  exit 1
+fi
+
+if [[ ! -f $ENV_FILE ]]; then
+  echo "缺少 $ENV_FILE，请先按 experiments/ai-analysis-eval/.env.example 配置 API Key。"
+  exit 1
+fi
+
+echo "暗房本地版：http://127.0.0.1:$PORT"
+set -a
+source $ENV_FILE
+set +a
+exec $NODE_BIN $SCRIPT_DIR/app/node_modules/next/dist/bin/next dev $SCRIPT_DIR/app \
+  --hostname 127.0.0.1 --port $PORT

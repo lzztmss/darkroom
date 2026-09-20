@@ -2,7 +2,7 @@
 
 一个面向中国摄影爱好者的私密 AI 摄影学习产品。它帮助用户理解照片、获得可执行的拍摄建议、尝试可控的传统后期，并逐步形成个人审美档案。
 
-项目当前处于产品设计审阅阶段，尚未进入业务代码实现。
+项目已经完成产品设计和原型规划，当前以 `develop` 分支推进本地 MVP。正式工作目录为 `~/Develop/photo-mentor-cn`；`main` 只保留可交付基线。
 
 ## 核心立场
 
@@ -17,12 +17,20 @@
 
 - [项目书](docs/product/PROJECT_BRIEF.md)
 - [产品设计规格](docs/superpowers/specs/2026-07-22-photo-mentor-design.md)
+- [实施计划索引](docs/superpowers/plans/2026-07-22-implementation-plan-index.md)
+- [本地 MVP 设计规格](develop/specs/2026-08-24-local-mvp-design.md)
+- [本地 MVP 实施计划](develop/specs/2026-08-24-local-mvp-implementation-plan.md)
+- [AI 能力评测实验规格](docs/experiments/2026-07-27-ai-analysis-capability-evaluation.md)
 - [产品路线图](docs/product/ROADMAP.md)
 - [竞品与可行性研究](docs/research/COMPETITIVE_LANDSCAPE.md)
 - [ADR-0001：国内模型与供应商抽象](docs/decisions/0001-domestic-model-provider-abstraction.md)
 - [ADR-0002：隐私优先的照片生命周期](docs/decisions/0002-privacy-first-photo-lifecycle.md)
 - [项目协作规则](AGENTS.md)
 
-## 当前阶段出口
+## 当前工作区
 
-设计规格经项目发起人审阅确认后，下一步是编写实施计划；在此之前不确定技术栈、不搭建业务代码。
+- `develop/app`：本地 MVP 应用
+- `experiments/ai-analysis-eval`：模型能力评测台
+- `docs/`：产品、研究、路线图和架构决策
+
+本地 MVP 仍需经过规格审阅、固定评测集验证和图片隐私链路验证后，才能进入邀请制测试。

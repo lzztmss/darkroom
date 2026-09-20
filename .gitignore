@@ -3,7 +3,9 @@
 .env.*
 !.env.example
 node_modules/
+.pnpm-store/
 .next/
+*.tsbuildinfo
 dist/
 coverage/
 tmp/
