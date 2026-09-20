@@ -18,7 +18,7 @@
 - 当前阶段：本地 MVP 第一版实现与验证。
 - 本地 MVP 规格：[specs/2026-08-24-local-mvp-design.md](specs/2026-08-24-local-mvp-design.md)
 - 现有模型评测台：`experiments/ai-analysis-eval`
-- 可复用的旧交互原型：分支 `codex/dynamic-frontend-prototype` 中的 `apps/web`
+- 可复用的旧交互原型：分支 `feat/dynamic-frontend-prototype` 中的 `apps/web`
 
 旧原型已经包含主页、分析输入页、结果页、分项评分条、裁切预览和参数建议。后续实施时应从该分支迁入并改造，不重写已经验证的基础交互，也不覆盖评测台。
 

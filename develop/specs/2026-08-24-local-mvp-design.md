@@ -142,7 +142,7 @@
 
 ## 9. 与旧版本的关系
 
-旧交互原型位于 Git 分支 `codex/dynamic-frontend-prototype` 的 `apps/web`。可复用内容包括：
+旧交互原型位于 Git 分支 `feat/dynamic-frontend-prototype` 的 `apps/web`。可复用内容包括：
 
 - 暗房配色和基础排版
 - 上传/意图输入页
