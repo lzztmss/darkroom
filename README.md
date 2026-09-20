@@ -18,8 +18,8 @@
 - [项目书](docs/product/PROJECT_BRIEF.md)
 - [产品设计规格](docs/superpowers/specs/2026-07-22-photo-mentor-design.md)
 - [实施计划索引](docs/superpowers/plans/2026-07-22-implementation-plan-index.md)
-- [本地 MVP 设计规格](develop/specs/2026-08-24-local-mvp-design.md)
-- [本地 MVP 实施计划](develop/specs/2026-08-24-local-mvp-implementation-plan.md)
+- [本地 MVP 设计规格](docs/specs/2026-08-24-local-mvp-design.md)
+- [本地 MVP 实施计划](docs/specs/2026-08-24-local-mvp-implementation-plan.md)
 - [AI 能力评测实验规格](docs/experiments/2026-07-27-ai-analysis-capability-evaluation.md)
 - [产品路线图](docs/product/ROADMAP.md)
 - [竞品与可行性研究](docs/research/COMPETITIVE_LANDSCAPE.md)
@@ -29,7 +29,7 @@
 
 ## 当前工作区
 
-- `develop/app`：本地 MVP 应用
+- `apps/web`：本地 MVP 应用
 - `experiments/ai-analysis-eval`：模型能力评测台
 - `docs/`：产品、研究、路线图和架构决策
 

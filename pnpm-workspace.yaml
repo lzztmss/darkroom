@@ -1,5 +1,5 @@
 packages:
-  - develop/app
+  - apps/web
 
 allowBuilds:
   esbuild: true

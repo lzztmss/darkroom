@@ -6,13 +6,13 @@
 
 ## 技术选择
 
-复用已批准旧原型的 Next.js 16、React 19、TypeScript、Zod、Vitest 和 Playwright，不增加新的前端框架。业务应用放在 `develop/app`；模型评测继续留在 `experiments/ai-analysis-eval`。
+复用已批准旧原型的 Next.js 16、React 19、TypeScript、Zod、Vitest 和 Playwright，不增加新的前端框架。业务应用放在 `apps/web`；模型评测继续留在 `experiments/ai-analysis-eval`。
 
 浏览器负责选择照片、完整画幅预览、方向修正和生成压缩副本。本地 Next.js 服务负责模型适配、提示构建、结构化校验和错误降级，浏览器不接触 API key。
 
 ## 里程碑 1：真实照片输入
 
-1. 迁移旧暗房原型到 `develop/app`，替换工作名和固定样例标识。
+1. 迁移旧暗房原型到 `apps/web`，替换工作名和固定样例标识。
 2. 先写图片尺寸规划测试，覆盖横图、竖图、小图和异常尺寸。
 3. 实现本地文件选择、类型/大小校验、完整 `contain` 预览和最长边 2048px 的压缩副本。
 4. 保存临时分析上下文，刷新或离开后可清理，不把图片写入仓库。

@@ -21,5 +21,5 @@ else
 fi
 
 echo "暗房本地版：http://127.0.0.1:$PORT"
-exec $NODE_BIN $SCRIPT_DIR/app/node_modules/next/dist/bin/next dev $SCRIPT_DIR/app \
+exec $NODE_BIN $PROJECT_ROOT/apps/web/node_modules/next/dist/bin/next dev $PROJECT_ROOT/apps/web \
   --hostname 127.0.0.1 --port $PORT
