@@ -193,7 +193,7 @@ export function AnalysisForm() {
           <button aria-label={buttonLabel} className={`analysis-action${waiting ? ' is-analyzing' : ''}`} disabled={!image || busy} onClick={startAnalysis} type="button">
             <span>{buttonLabel}{waiting ? ` · ${elapsedSeconds} 秒` : ''}</span><i aria-hidden="true" />
           </button>
-          {waiting && <p className="analysis-wait-note">已关闭模型深度思考并压缩输入；复杂画面仍可能需要几十秒，请不要重复提交。</p>}
+          {waiting && <p className="analysis-wait-note">已压缩分析输入；本地默认关闭模型深度思考，复杂画面仍可能需要几十秒，请不要重复提交。</p>}
           <p className="analysis-consent">只发送压缩分析副本。原图不修改；公开展示和模型改进默认关闭。</p>
         </section>
       </div>

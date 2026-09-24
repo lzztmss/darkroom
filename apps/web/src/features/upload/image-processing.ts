@@ -1,6 +1,6 @@
-const MAX_LONG_EDGE = 1600;
+const MAX_LONG_EDGE = 1440;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
-const TARGET_BYTES = 1.2 * 1024 * 1024;
+const TARGET_BYTES = 0.9 * 1024 * 1024;
 const SUPPORTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 export type ResizePlan = {

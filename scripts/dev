@@ -17,7 +17,7 @@ if [[ -f $ENV_FILE ]]; then
   source $ENV_FILE
   set +a
 else
-  echo "未找到 $ENV_FILE；界面仍可启动，但模型分析需要配置 DASHSCOPE_API_KEY。"
+  echo "未找到 $ENV_FILE；界面仍可启动，但模型分析需要配置 PHOTO_MENTOR_API_KEY、DEEPSEEK_API_KEY 或 DASHSCOPE_API_KEY。"
 fi
 
 echo "暗房本地版：http://127.0.0.1:$PORT"

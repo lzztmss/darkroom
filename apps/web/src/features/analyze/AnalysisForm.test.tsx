@@ -10,8 +10,8 @@ const { pushMock, saveHistoryMock, prepared } = vi.hoisted(() => ({
     dataUrl: 'data:image/jpeg;base64,abc',
     previewUrl: 'blob:portrait',
     mimeType: 'image/jpeg' as const,
-    width: 1024,
-    height: 2048,
+    width: 720,
+    height: 1440,
     originalBytes: 8_000_000,
     analysisBytes: 900_000,
   },
@@ -44,7 +44,7 @@ it('shows the complete prepared image and transmission size', async () => {
 
   expect(await screen.findByAltText('portrait.jpg 的完整预览')).toBeVisible();
   expect(screen.getByText('屏幕预览：本地原图')).toBeVisible();
-  expect(screen.getByText(/发送给 AI：1024 × 2048 · 879 KB/)).toBeVisible();
+  expect(screen.getByText(/发送给 AI：720 × 1440 · 879 KB/)).toBeVisible();
   expect(screen.getByLabelText('照片名称')).toHaveValue('portrait');
   expect(screen.getByText('换一张照片').closest('label')).toHaveClass('fill-action');
 });

@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { buildResizePlan } from './image-processing';
 
 describe('buildResizePlan', () => {
-  it('limits a large landscape image to a 1600 pixel long edge for faster model input', () => {
-    expect(buildResizePlan(6000, 4000)).toEqual({ width: 1600, height: 1067, resized: true });
+  it('limits a large landscape image to a 1440 pixel long edge for faster model input', () => {
+    expect(buildResizePlan(6000, 4000)).toEqual({ width: 1440, height: 960, resized: true });
   });
 
   it('preserves a portrait image aspect ratio', () => {
-    expect(buildResizePlan(3000, 6000)).toEqual({ width: 800, height: 1600, resized: true });
+    expect(buildResizePlan(3000, 6000)).toEqual({ width: 720, height: 1440, resized: true });
   });
 
   it('does not enlarge a smaller image', () => {

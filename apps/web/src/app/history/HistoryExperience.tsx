@@ -4,7 +4,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ANALYSIS_STORAGE_KEY } from '../../features/analysis/contract';
-import { AnalysisHistoryRecord, deleteAnalysisHistory, listAnalysisHistory } from '../../features/history/history-store';
+import {
+  AnalysisHistoryRecord,
+  DEFAULT_LOCAL_ORIGIN,
+  deleteAnalysisHistory,
+  getHistoryOriginHint,
+  listAnalysisHistory,
+} from '../../features/history/history-store';
 
 export function HistoryExperience() {
   const router = useRouter();
@@ -12,6 +18,7 @@ export function HistoryExperience() {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
+  const storageOrigin = typeof window === 'undefined' ? '' : window.location.origin;
 
   useEffect(() => {
     void listAnalysisHistory()
@@ -57,7 +64,19 @@ export function HistoryExperience() {
         </div>
         {!loaded && <p className="history-empty">正在读取…</p>}
         {error && <p className="history-empty" role="alert">{error}</p>}
-        {loaded && !error && records.length === 0 && <div className="history-empty"><p>还没有保存过照片分析。</p><Link href="/analyze">选择第一张照片</Link></div>}
+        {loaded && !error && records.length === 0 && (
+          <div className="history-empty">
+            <p>还没有保存过照片分析。</p>
+            {storageOrigin && storageOrigin !== DEFAULT_LOCAL_ORIGIN && (
+              <p className="history-storage-hint" role="status">
+                {getHistoryOriginHint(storageOrigin)}
+                {' '}
+                <a href={`${DEFAULT_LOCAL_ORIGIN}/history`}>打开原地址</a>
+              </p>
+            )}
+            <Link href="/analyze">选择第一张照片</Link>
+          </div>
+        )}
         {loaded && !error && records.length > 0 && filteredRecords.length === 0 && <p className="history-empty">没有找到匹配的照片。</p>}
         <div className="history-grid">
           {filteredRecords.map((record) => (

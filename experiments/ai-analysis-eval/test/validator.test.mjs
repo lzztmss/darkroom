@@ -126,6 +126,40 @@ test("accepts a complete result with explicit omitted geometry", () => {
   assert.deepEqual(result.errors, []);
 });
 
+test("accepts the contextual professional score method", () => {
+  const input = validResult();
+  input.overall_score = 70;
+  input.overall_score_method = "weighted_context_v1";
+  input.professional_scores = [
+    ["intent_fit", 0, 0],
+    ["visual_structure", 58, 0.8],
+    ["content_narrative", 58, 0.8],
+    ["light_color", 58, 0.8],
+    ["timing_relationship", 58, 0.8],
+    ["craft", 58, 0.8],
+    ["voice_originality", 58, 0.8],
+  ].map(([dimension, score, confidence]) => ({
+    dimension,
+    score,
+    evidence: "可见证据",
+    suggestion: "保持克制",
+    confidence,
+  }));
+  input.evaluation_context = {
+    profile: "street_documentary",
+    profile_label: "街头 / 纪实",
+    strategy: "layered_ambiguous",
+    strategy_confidence: 0.82,
+    intent_status: "not_provided",
+    severe_issue: false,
+    floor_applied: true,
+    raw_score: 58,
+  };
+
+  const result = validateAnalysisResult(input);
+  assert.deepEqual(result.errors, []);
+});
+
 test("calculates a transparent overall score from dimension scores", () => {
   const input = validResult();
   input.overall_score = calculateOverallScore(input.dimension_scores);
