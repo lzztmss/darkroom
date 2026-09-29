@@ -126,6 +126,40 @@ test("accepts a complete result with explicit omitted geometry", () => {
   assert.deepEqual(result.errors, []);
 });
 
+test("accepts the contextual professional score method", () => {
+  const input = validResult();
+  input.overall_score = 70;
+  input.overall_score_method = "weighted_context_v1";
+  input.professional_scores = [
+    ["intent_fit", 0, 0],
+    ["visual_structure", 58, 0.8],
+    ["content_narrative", 58, 0.8],
+    ["light_color", 58, 0.8],
+    ["timing_relationship", 58, 0.8],
+    ["craft", 58, 0.8],
+    ["voice_originality", 58, 0.8],
+  ].map(([dimension, score, confidence]) => ({
+    dimension,
+    score,
+    evidence: "可见证据",
+    suggestion: "保持克制",
+    confidence,
+  }));
+  input.evaluation_context = {
+    profile: "street_documentary",
+    profile_label: "街头 / 纪实",
+    strategy: "layered_ambiguous",
+    strategy_confidence: 0.82,
+    intent_status: "not_provided",
+    severe_issue: false,
+    floor_applied: true,
+    raw_score: 58,
+  };
+
+  const result = validateAnalysisResult(input);
+  assert.deepEqual(result.errors, []);
+});
+
 test("calculates a transparent overall score from dimension scores", () => {
   const input = validResult();
   input.overall_score = calculateOverallScore(input.dimension_scores);
@@ -145,6 +179,22 @@ test("rejects drawing a low-confidence annotation", () => {
 
   const result = validateAnalysisResult(input);
   assert.ok(result.errors.some((error) => error.includes("低于 0.55")));
+});
+
+test("rejects drawing a leading line below the 85 percent threshold", () => {
+  const input = validResult();
+  input.leading_lines = [{
+    id: "line-low",
+    label: "疑似线条",
+    decision: "draw",
+    points: [[0.1, 0.9], [0.8, 0.2]],
+    rationale: "方向不够稳定。",
+    confidence: 0.84,
+    omit_reason: null,
+  }];
+
+  const result = validateAnalysisResult(input);
+  assert.ok(result.errors.some((error) => error.includes("低于 0.85")));
 });
 
 test("rejects geometry outside normalized coordinates", () => {

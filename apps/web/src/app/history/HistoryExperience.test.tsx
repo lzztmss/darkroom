@@ -20,7 +20,11 @@ const { deleteMock, listMock, pushMock, record } = vi.hoisted(() => ({
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: pushMock }) }));
 vi.mock('../../features/history/history-store', () => ({
+  DEFAULT_LOCAL_ORIGIN: 'http://127.0.0.1:4174',
   deleteAnalysisHistory: deleteMock,
+  getHistoryOriginHint: (origin: string) => origin === 'http://127.0.0.1:4174'
+    ? null
+    : '历史记录按网址保存在当前浏览器。你之前如果使用过 http://127.0.0.1:4174，请回到那个地址查看；迁移项目文件夹本身不会删除原记录。',
   listAnalysisHistory: listMock,
 }));
 
@@ -36,7 +40,7 @@ it('lists locally saved analyses and opens a selected critique', async () => {
   render(<HistoryExperience />);
 
   expect(await screen.findByRole('heading', { name: 'street.jpg' })).toBeVisible();
-  expect(screen.getByText('街头 · 快速索引 82')).toBeVisible();
+  expect(screen.getByText('街头 · 综合参考 82')).toBeVisible();
   await user.click(screen.getByRole('button', { name: '查看点评' }));
 
   expect(pushMock).toHaveBeenCalledWith('/result');
@@ -70,4 +74,13 @@ it('searches history by custom name, source filename, genre, and intent', async 
   await user.type(screen.getByRole('searchbox', { name: '搜索历史记录' }), '城市空间');
   expect(screen.getByRole('heading', { name: '雪夜路口' })).toBeVisible();
   expect(screen.queryByRole('heading', { name: '暖夜酒吧' })).not.toBeInTheDocument();
+});
+
+it('explains that empty history can belong to another local origin', async () => {
+  listMock.mockResolvedValue([]);
+  render(<HistoryExperience />);
+
+  const hint = await screen.findByRole('status');
+  expect(hint).toHaveTextContent('127.0.0.1:4174');
+  expect(screen.getByRole('link', { name: '打开原地址' })).toHaveAttribute('href', 'http://127.0.0.1:4174/history');
 });

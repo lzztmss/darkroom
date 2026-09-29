@@ -1,4 +1,5 @@
 export const DRAW_THRESHOLD = 0.55;
+export const LINE_DRAW_THRESHOLD = 0.85;
 export const MAX_CROP_LOSS = 0.25;
 
 const DIMENSIONS = [
@@ -7,6 +8,28 @@ const DIMENSIONS = [
   "color_tone",
   "narrative",
   "technical",
+];
+
+const PROFESSIONAL_DIMENSIONS = [
+  "intent_fit",
+  "visual_structure",
+  "content_narrative",
+  "light_color",
+  "timing_relationship",
+  "craft",
+  "voice_originality",
+];
+
+const PHOTO_STRATEGIES = [
+  "single_subject",
+  "layered_ambiguous",
+  "minimal_space",
+  "geometric",
+  "environmental_portrait",
+  "decisive_moment",
+  "color_light",
+  "conceptual",
+  "unclear",
 ];
 
 export function calculateOverallScore(dimensionScores) {
@@ -37,7 +60,7 @@ function validateBox(box, path, errors) {
   }
 }
 
-function validateDecision(item, path, geometryKey, errors) {
+function validateDecision(item, path, geometryKey, errors, threshold = DRAW_THRESHOLD) {
   if (!["draw", "omit"].includes(item?.decision)) {
     errors.push(`${path}.decision 必须是 draw 或 omit`);
     return;
@@ -49,8 +72,8 @@ function validateDecision(item, path, geometryKey, errors) {
     errors.push(`${path}.rationale 不能为空`);
   }
   if (item.decision === "draw") {
-    if (item.confidence < DRAW_THRESHOLD) {
-      errors.push(`${path} 置信度低于 ${DRAW_THRESHOLD}，必须返回不画`);
+    if (item.confidence < threshold) {
+      errors.push(`${path} 置信度低于 ${threshold}，必须返回不画`);
     }
     if (item[geometryKey] == null) {
       errors.push(`${path}.${geometryKey} 在 draw 时不能为空`);
@@ -78,6 +101,60 @@ function validateTextList(value, path, errors) {
   }
 }
 
+function validateProfessionalScores(input, errors) {
+  if (input.professional_scores == null) {
+    if (input.overall_score_method === "weighted_context_v1") {
+      errors.push("weighted_context_v1 必须包含 professional_scores");
+    }
+    return;
+  }
+  if (!Array.isArray(input.professional_scores)) {
+    errors.push("professional_scores 必须是数组");
+    return;
+  }
+  const names = input.professional_scores.map((item) => item?.dimension);
+  if (
+    names.length !== PROFESSIONAL_DIMENSIONS.length
+    || new Set(names).size !== PROFESSIONAL_DIMENSIONS.length
+    || PROFESSIONAL_DIMENSIONS.some((name) => !names.includes(name))
+  ) {
+    errors.push(`professional_scores 必须且只能包含 ${PROFESSIONAL_DIMENSIONS.join(", ")}`);
+  }
+  input.professional_scores.forEach((item, index) => {
+    const path = `professional_scores[${index}]`;
+    if (!Number.isInteger(item?.score) || item.score < 0 || item.score > 100) {
+      errors.push(`${path}.score 必须是 0 到 100 的整数`);
+    }
+    for (const key of ["evidence", "suggestion"]) {
+      if (typeof item?.[key] !== "string" || !item[key].trim()) {
+        errors.push(`${path}.${key} 不能为空`);
+      }
+    }
+    if (!isUnit(item?.confidence)) errors.push(`${path}.confidence 必须是 0 到 1`);
+  });
+}
+
+function validateEvaluationContext(input, errors) {
+  if (input.evaluation_context == null) {
+    if (input.overall_score_method === "weighted_context_v1") {
+      errors.push("weighted_context_v1 必须包含 evaluation_context");
+    }
+    return;
+  }
+  const context = input.evaluation_context;
+  if (typeof context !== "object" || Array.isArray(context)) {
+    errors.push("evaluation_context 必须是对象");
+    return;
+  }
+  if (typeof context.profile !== "string" || !context.profile.trim()) errors.push("evaluation_context.profile 不能为空");
+  if (typeof context.profile_label !== "string" || !context.profile_label.trim()) errors.push("evaluation_context.profile_label 不能为空");
+  if (!PHOTO_STRATEGIES.includes(context.strategy)) errors.push("evaluation_context.strategy 不是允许的画面策略");
+  if (!isUnit(context.strategy_confidence)) errors.push("evaluation_context.strategy_confidence 必须是 0 到 1");
+  if (!["supported", "partial", "unclear", "not_provided"].includes(context.intent_status)) errors.push("evaluation_context.intent_status 不合法");
+  if (typeof context.severe_issue !== "boolean" || typeof context.floor_applied !== "boolean") errors.push("evaluation_context 的布尔字段不合法");
+  if (!Number.isInteger(context.raw_score) || context.raw_score < 0 || context.raw_score > 100) errors.push("evaluation_context.raw_score 必须是 0 到 100 的整数");
+}
+
 export function validateAnalysisResult(input) {
   const errors = [];
   if (!input || typeof input !== "object" || Array.isArray(input)) {
@@ -96,8 +173,8 @@ export function validateAnalysisResult(input) {
     }
   }
 
-  if (input.overall_score_method !== "mean_of_dimensions_v1") {
-    errors.push("overall_score_method 必须是 mean_of_dimensions_v1");
+  if (!["mean_of_dimensions_v1", "weighted_context_v1"].includes(input.overall_score_method)) {
+    errors.push("overall_score_method 必须是 mean_of_dimensions_v1 或 weighted_context_v1");
   }
   if (
     input.model_overall_score !== null &&
@@ -151,10 +228,13 @@ export function validateAnalysisResult(input) {
       }
     });
     const calculated = calculateOverallScore(input.dimension_scores);
-    if (calculated !== null && input.overall_score !== calculated) {
+    if (input.overall_score_method === "mean_of_dimensions_v1" && calculated !== null && input.overall_score !== calculated) {
       errors.push(`overall_score 与分项分数计算值 ${calculated} 不一致`);
     }
   }
+
+  validateProfessionalScores(input, errors);
+  validateEvaluationContext(input, errors);
 
   for (const collection of ["subject_boxes", "leading_lines", "crop_boxes"]) {
     if (!Array.isArray(input[collection]) || input[collection].length === 0) {
@@ -170,7 +250,7 @@ export function validateAnalysisResult(input) {
 
   (input.leading_lines ?? []).forEach((item, index) => {
     const path = `leading_lines[${index}]`;
-    validateDecision(item, path, "points", errors);
+    validateDecision(item, path, "points", errors, LINE_DRAW_THRESHOLD);
     if (item.decision === "draw") {
       if (
         !Array.isArray(item.points) ||
@@ -256,11 +336,11 @@ export function validateAnalysisResult(input) {
 
 export function collectRenderableAnnotations(input) {
   const output = [];
-  const add = (items, kind, geometryKey) => {
+  const add = (items, kind, geometryKey, threshold = DRAW_THRESHOLD) => {
     for (const item of items ?? []) {
       if (
         item.decision === "draw" &&
-        item.confidence >= DRAW_THRESHOLD &&
+        item.confidence >= threshold &&
         item[geometryKey] != null
       ) {
         output.push({ kind, ...item });
@@ -268,7 +348,7 @@ export function collectRenderableAnnotations(input) {
     }
   };
   add(input.subject_boxes, "subject", "box");
-  add(input.leading_lines, "line", "points");
+  add(input.leading_lines, "line", "points", LINE_DRAW_THRESHOLD);
   add(input.crop_boxes, "crop", "box");
   return output;
 }

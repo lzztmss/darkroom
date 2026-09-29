@@ -1,4 +1,12 @@
 import { z } from 'zod';
+import {
+  calculateProfessionalScore,
+  getProfessionalProfile,
+  normalizeEvaluationContext,
+  PHOTO_STRATEGIES,
+  PROFESSIONAL_DIMENSIONS,
+  type ProfessionalDimension,
+} from './professional-rubric';
 
 const Unit = z.number().min(0).max(1);
 const Box = z.object({
@@ -25,6 +33,48 @@ export const DimensionSchema = z.object({
   confidence: Unit,
 });
 
+const ProfessionalDimensionItemSchema = z.object({
+  dimension: z.enum(PROFESSIONAL_DIMENSIONS),
+  score: z.number().int().min(0).max(100),
+  evidence: z.string().min(1),
+  suggestion: z.string().min(1),
+  confidence: Unit,
+});
+
+const ProfessionalScoresSchema = z.array(ProfessionalDimensionItemSchema).length(PROFESSIONAL_DIMENSIONS.length)
+  .refine((items) => new Set(items.map((item) => item.dimension)).size === PROFESSIONAL_DIMENSIONS.length, {
+    message: '专业维度必须各出现一次',
+  });
+
+export const ProfessionalDimensionSchema = ProfessionalDimensionItemSchema;
+
+const AuthorCandidateSchema = z.object({
+  name: z.string().min(1),
+  work: z.string().nullable().default(null),
+  confidence: Unit,
+  evidence: z.string().min(1),
+});
+
+export const AuthorAttributionSchema = z.object({
+  status: z.enum(['identified', 'possible', 'unknown']),
+  primary_name: z.string().nullable(),
+  candidates: z.array(AuthorCandidateSchema).max(3),
+  confidence: Unit,
+  evidence: z.string().min(1),
+  source: z.enum(['visual_match', 'user_provided', 'authorized_catalog']),
+});
+
+export const EvaluationContextSchema = z.object({
+  profile: z.string().min(1).default('general'),
+  profile_label: z.string().min(1).default('通用摄影阅读'),
+  strategy: z.enum(PHOTO_STRATEGIES).default('unclear'),
+  strategy_confidence: Unit.default(0),
+  intent_status: z.enum(['supported', 'partial', 'unclear', 'not_provided']).default('not_provided'),
+  severe_issue: z.boolean().default(false),
+  floor_applied: z.boolean().default(false),
+  raw_score: z.number().int().min(0).max(100).default(0),
+});
+
 export const AnalysisResultSchema = z.object({
   schema_version: z.literal('1.0.0').default('1.0.0'),
   evaluation_id: z.string().min(1),
@@ -36,9 +86,12 @@ export const AnalysisResultSchema = z.object({
     prompt_version: z.string().min(1),
   }),
   overall_score: z.number().int().min(0).max(100),
-  overall_score_method: z.literal('mean_of_dimensions_v1').default('mean_of_dimensions_v1'),
+  overall_score_method: z.enum(['mean_of_dimensions_v1', 'weighted_context_v1']).default('mean_of_dimensions_v1'),
   score_summary: z.string().min(1),
   dimension_scores: z.array(DimensionSchema).length(5),
+  professional_scores: ProfessionalScoresSchema.optional(),
+  author_attribution: AuthorAttributionSchema.optional(),
+  evaluation_context: EvaluationContextSchema.optional(),
   subject_boxes: z.array(DecisionBase.extend({ box: Box.nullable() })).min(1),
   leading_lines: z.array(DecisionBase.extend({
     points: z.array(z.tuple([Unit, Unit])).min(2).max(8).nullable(),
@@ -120,8 +173,50 @@ export function normalizePreservesIntent(value: unknown): string {
   return '未提供足够说明';
 }
 
+const UNKNOWN_AUTHOR_ATTRIBUTION = {
+  status: 'unknown' as const,
+  primary_name: null,
+  candidates: [],
+  confidence: 0,
+  evidence: '没有足够的视觉证据确认作者或具体作品。',
+  source: 'visual_match' as const,
+};
+
+export function normalizeAuthorAttribution(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return UNKNOWN_AUTHOR_ATTRIBUTION;
+  const source = value as Record<string, unknown>;
+  const candidates = Array.isArray(source.candidates)
+    ? source.candidates
+      .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object'))
+      .slice(0, 3)
+      .map((item) => ({
+        name: typeof item.name === 'string' && item.name.trim() ? item.name.trim() : '未命名作者',
+        work: typeof item.work === 'string' && item.work.trim() ? item.work.trim() : null,
+        confidence: Math.max(0, Math.min(1, Number(item.confidence) || 0)),
+        evidence: typeof item.evidence === 'string' && item.evidence.trim() ? item.evidence : '未提供具体视觉依据',
+      }))
+    : [];
+  const status = source.status === 'identified' || source.status === 'possible' ? source.status : 'unknown';
+  const confidence = Math.max(0, Math.min(1, Number(source.confidence) || 0));
+  const primaryName = typeof source.primary_name === 'string' && source.primary_name.trim()
+    ? source.primary_name.trim()
+    : candidates[0]?.name ?? null;
+  const sourceName = source.source === 'user_provided' || source.source === 'authorized_catalog'
+    ? source.source
+    : 'visual_match';
+  const trustedStatus = status === 'identified' && confidence < 0.82 ? 'possible' : status;
+  return {
+    status: trustedStatus,
+    primary_name: trustedStatus === 'unknown' ? null : primaryName,
+    candidates,
+    confidence,
+    evidence: typeof source.evidence === 'string' && source.evidence.trim() ? source.evidence : UNKNOWN_AUTHOR_ATTRIBUTION.evidence,
+    source: sourceName,
+  } as const;
+}
+
 export function normalizeScoreScale(scores: number[]): number[] {
-  const usesTenPointScale = scores.length === 5
+  const usesTenPointScale = scores.length >= 5
     && scores.every((score) => Number.isFinite(score) && score >= 0 && score <= 10);
   return scores.map((score) => Math.round(score * (usesTenPointScale ? 10 : 1)));
 }
@@ -133,11 +228,139 @@ function normalizeOmitReason(source: Record<string, unknown>, fallback: string):
   return fallback;
 }
 
+const EMPTY_SUBJECT_BOX = {
+  id: 'subject-none',
+  label: '主体',
+  decision: 'omit' as const,
+  rationale: '模型未返回可靠主体',
+  confidence: 0,
+  omit_reason: '模型未返回可靠主体，已隐藏框线',
+  box: null,
+};
+
+const EMPTY_LEADING_LINE = {
+  id: 'leading-line-none',
+  label: '引导线',
+  decision: 'omit' as const,
+  rationale: '模型未返回可靠引导线',
+  confidence: 0,
+  omit_reason: '模型未返回可靠引导线，已隐藏线条',
+  points: null,
+};
+
+const EMPTY_CROP_BOX = {
+  id: 'crop-none',
+  label: '保留原构图',
+  decision: 'omit' as const,
+  rationale: '模型未返回可靠裁切方案',
+  confidence: 0,
+  omit_reason: '模型未返回可靠裁切方案，已保留原构图',
+  box: null,
+  loss_ratio: 0,
+  preserves_intent: '保留原构图',
+};
+
+const LEGACY_TO_PROFESSIONAL: Record<string, ProfessionalDimension> = {
+  composition: 'visual_structure',
+  light: 'light_color',
+  color_tone: 'light_color',
+  narrative: 'content_narrative',
+  technical: 'craft',
+};
+
+type ProfessionalScoreItem = z.infer<typeof ProfessionalDimensionItemSchema>;
+
+function normalizeProfessionalScoreItems(value: unknown): ProfessionalScoreItem[] | null {
+  if (!Array.isArray(value)) return null;
+  const rawScores = value.map((item) => Number((item as Record<string, unknown>)?.score));
+  const normalizedScores = normalizeScoreScale(rawScores);
+  const normalized = value.map((item, index) => {
+    if (!item || typeof item !== 'object') return item;
+    return { ...(item as Record<string, unknown>), score: normalizedScores[index] };
+  });
+  const parsed = ProfessionalScoresSchema.safeParse(normalized);
+  return parsed.success ? parsed.data : null;
+}
+
+function deriveProfessionalScores(legacy: unknown): ProfessionalScoreItem[] | null {
+  if (!Array.isArray(legacy)) return null;
+  const items = legacy.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object'));
+  const byDimension = new Map<string, Record<string, unknown>>(
+    items.map((item) => [String(item.dimension), item]),
+  );
+  const lightItems = ['light', 'color_tone']
+    .map((dimension) => byDimension.get(dimension))
+    .filter((item): item is Record<string, unknown> => Boolean(item));
+  const lightScore = lightItems.length > 0
+    ? Math.round(lightItems.reduce((sum, item) => sum + Number(item.score), 0) / lightItems.length)
+    : 0;
+  const lightEvidence = lightItems.map((item) => String(item.evidence)).join('；') || '旧版本未提供光线与色彩评分';
+  const lightSuggestion = lightItems.map((item) => String(item.suggestion)).join('；') || '待专业评价体系重新分析';
+  const result = PROFESSIONAL_DIMENSIONS.map((dimension) => {
+    if (dimension === 'intent_fit' || dimension === 'timing_relationship' || dimension === 'voice_originality') {
+      return {
+        dimension,
+        score: 0,
+        evidence: '旧版本未评估该专业维度',
+        suggestion: '待专业评价体系重新分析',
+        confidence: 0,
+      };
+    }
+    if (dimension === 'light_color') {
+      return {
+        dimension,
+        score: lightScore,
+        evidence: lightEvidence,
+        suggestion: lightSuggestion,
+        confidence: lightItems.length > 0
+          ? Math.min(...lightItems.map((item) => Number(item.confidence)))
+          : 0,
+      };
+    }
+    const legacyDimension = Object.entries(LEGACY_TO_PROFESSIONAL)
+      .find(([, mapped]) => mapped === dimension)?.[0];
+    const source = legacyDimension ? byDimension.get(legacyDimension) : null;
+    return {
+      dimension,
+      score: source ? Number(source.score) : 0,
+      evidence: source ? String(source.evidence) : '旧版本未提供该专业维度',
+      suggestion: source ? String(source.suggestion) : '待专业评价体系重新分析',
+      confidence: source ? Number(source.confidence) : 0,
+    };
+  });
+  const parsed = ProfessionalScoresSchema.safeParse(result);
+  return parsed.success ? parsed.data : null;
+}
+
+function deriveLegacyScores(professional: ProfessionalScoreItem[]): Array<z.infer<typeof DimensionSchema>> {
+  const get = (dimension: ProfessionalDimension) => professional.find((item) => item.dimension === dimension);
+  const visual = get('visual_structure');
+  const light = get('light_color');
+  const content = get('content_narrative');
+  const craft = get('craft');
+  return [
+    { dimension: 'composition', score: visual?.score ?? 0, evidence: visual?.evidence ?? '未评估', suggestion: visual?.suggestion ?? '待补充', confidence: visual?.confidence ?? 0 },
+    { dimension: 'light', score: light?.score ?? 0, evidence: light?.evidence ?? '未评估', suggestion: light?.suggestion ?? '待补充', confidence: light?.confidence ?? 0 },
+    { dimension: 'color_tone', score: light?.score ?? 0, evidence: light?.evidence ?? '未评估', suggestion: light?.suggestion ?? '待补充', confidence: light?.confidence ?? 0 },
+    { dimension: 'narrative', score: content?.score ?? 0, evidence: content?.evidence ?? '未评估', suggestion: content?.suggestion ?? '待补充', confidence: content?.confidence ?? 0 },
+    { dimension: 'technical', score: craft?.score ?? 0, evidence: craft?.evidence ?? '未评估', suggestion: craft?.suggestion ?? '待补充', confidence: craft?.confidence ?? 0 },
+  ];
+}
+
 function normalizeModelShape(input: unknown): unknown {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return input;
   const value = input as Record<string, unknown>;
+  const professionalScores = normalizeProfessionalScoreItems(value.professional_scores)
+    ?? deriveProfessionalScores(value.dimension_scores);
+  const legacyScores = Array.isArray(value.dimension_scores)
+    ? value.dimension_scores
+    : professionalScores
+      ? deriveLegacyScores(professionalScores)
+      : value.dimension_scores;
   const subjectBoxes = Array.isArray(value.subject_boxes)
-    ? value.subject_boxes.map((item) => {
+    ? value.subject_boxes.length === 0
+      ? [EMPTY_SUBJECT_BOX]
+      : value.subject_boxes.map((item) => {
         if (!item || typeof item !== 'object') return item;
         const source = item as Record<string, unknown>;
         const box = source.decision === 'omit' ? null : normalizeBox(source.box);
@@ -157,25 +380,34 @@ function normalizeModelShape(input: unknown): unknown {
       })
     : value.subject_boxes;
   const leadingLines = Array.isArray(value.leading_lines)
-    ? value.leading_lines.map((item) => {
+    ? value.leading_lines.length === 0
+      ? [EMPTY_LEADING_LINE]
+      : value.leading_lines.map((item) => {
         if (!item || typeof item !== 'object') return item;
         const source = item as Record<string, unknown>;
+        const lowConfidence = source.decision === 'draw' && Number(source.confidence) < 0.85;
         return {
           ...source,
-          points: source.decision === 'omit' ? null : source.points,
-          omit_reason: normalizeOmitReason(source, '模型未提供可靠引导线，已隐藏线条'),
+          decision: lowConfidence ? 'omit' : source.decision,
+          points: source.decision === 'omit' || lowConfidence ? null : source.points,
+          omit_reason: lowConfidence
+            ? '引导线置信度低于 85%，已隐藏线条'
+            : normalizeOmitReason(source, '模型未提供可靠引导线，已隐藏线条'),
         };
       })
     : value.leading_lines;
   const cropBoxes = Array.isArray(value.crop_boxes)
-    ? value.crop_boxes.map((item) => {
+    ? value.crop_boxes.length === 0
+      ? [EMPTY_CROP_BOX]
+      : value.crop_boxes.map((item) => {
         if (!item || typeof item !== 'object') return item;
         const source = item as Record<string, unknown>;
         const box = source.decision === 'omit' ? null : normalizeBox(source.box);
+        const lossRatio = source.decision === 'omit' ? 0 : Number(source.loss_ratio);
         const normalized = {
           ...source,
           box,
-          loss_ratio: source.decision === 'omit' ? 0 : Number(source.loss_ratio),
+          loss_ratio: lossRatio,
           preserves_intent: normalizePreservesIntent(source.preserves_intent),
           omit_reason: normalizeOmitReason(source, '模型未提供可靠裁切方案，已保留原构图'),
         };
@@ -188,15 +420,24 @@ function normalizeModelShape(input: unknown): unknown {
             omit_reason: '模型返回的裁切坐标不可靠，已保留原构图',
           };
         }
+        if (source.decision === 'draw' && (!Number.isFinite(lossRatio) || lossRatio < 0 || lossRatio > 0.25)) {
+          return {
+            ...normalized,
+            decision: 'omit',
+            box: null,
+            loss_ratio: 0,
+            omit_reason: '模型返回的裁切损失超过 25%，已保留原构图',
+          };
+        }
         return normalized;
       })
     : value.crop_boxes;
-  const rawScores = Array.isArray(value.dimension_scores)
-    ? value.dimension_scores.map((item) => Number((item as Record<string, unknown>)?.score))
+  const rawScores = Array.isArray(legacyScores)
+    ? legacyScores.map((item) => Number((item as Record<string, unknown>)?.score))
     : [];
   const normalizedScores = normalizeScoreScale(rawScores);
-  const dimensions = Array.isArray(value.dimension_scores)
-    ? value.dimension_scores.map((item, index) => item && typeof item === 'object'
+  const dimensions = Array.isArray(legacyScores)
+    ? legacyScores.map((item, index) => item && typeof item === 'object'
       ? {
           ...item,
           score: normalizedScores[index],
@@ -207,10 +448,11 @@ function normalizeModelShape(input: unknown): unknown {
   return {
     ...value,
     schema_version: '1.0.0',
+    professional_scores: professionalScores ?? value.professional_scores,
+    author_attribution: normalizeAuthorAttribution(value.author_attribution),
     overall_score: normalizedScores.length === 5
       ? Math.round(normalizedScores.reduce((sum, score) => sum + score, 0) / 5)
       : Math.round(Number(value.overall_score)),
-    overall_score_method: 'mean_of_dimensions_v1',
     dimension_scores: dimensions,
     subject_boxes: subjectBoxes,
     leading_lines: leadingLines,
@@ -218,13 +460,88 @@ function normalizeModelShape(input: unknown): unknown {
   };
 }
 
-export function normalizeAnalysisResult(input: unknown): AnalysisResult {
-  const result = AnalysisResultSchema.parse(normalizeModelShape(input));
+function suppressUnsafeCompositeSubjects(result: AnalysisResult): AnalysisResult {
+  const context = normalizeEvaluationContext(result.evaluation_context);
+  const drawnSubjects = result.subject_boxes.filter((item) => item.decision === 'draw');
+  const compositeStrategy = context.strategy === 'layered_ambiguous'
+    || context.strategy === 'decisive_moment';
+  if (drawnSubjects.length === 0 || (!compositeStrategy && drawnSubjects.length <= 1)) return result;
+
   return {
+    ...result,
+    subject_boxes: result.subject_boxes.map((item) => item.decision === 'draw'
+      ? {
+          ...item,
+          decision: 'omit' as const,
+          box: null,
+          omit_reason: '复合构图没有单一可靠主体框，已保留完整观看关系',
+        }
+      : item),
+    confidence: {
+      ...result.confidence,
+      subject_boxes: 0,
+    },
+  };
+}
+
+function inferFallbackEvaluationContext(result: AnalysisResult, genre?: string | null) {
+  const drawnSubjects = result.subject_boxes.filter((item) => item.decision === 'draw');
+  const isStreetLike = typeof genre === 'string' && (genre.includes('街头') || genre.includes('纪实'));
+  if (drawnSubjects.length > 1 || isStreetLike) {
+    return { strategy: 'layered_ambiguous', strategy_confidence: 0.58, severe_issue: false } as const;
+  }
+  return undefined;
+}
+
+export function normalizeAnalysisResult(input: unknown, options: { genre?: string | null; intentProvided?: boolean } = {}): AnalysisResult {
+  const result = AnalysisResultSchema.parse(normalizeModelShape(input));
+  if (result.professional_scores?.length === PROFESSIONAL_DIMENSIONS.length) {
+    const intentProvided = options.intentProvided
+      ?? result.evaluation_context?.intent_status !== 'not_provided';
+    const professionalScores = result.professional_scores.map((item) => {
+      if (item.dimension !== 'intent_fit' || intentProvided) return item;
+      return {
+        ...item,
+        score: 0,
+        confidence: 0,
+        evidence: '未提供创作意图，暂不评估',
+      };
+    });
+    const rawContext = normalizeEvaluationContext(
+      result.evaluation_context ?? inferFallbackEvaluationContext(result, options.genre),
+    );
+    const profile = getProfessionalProfile(options.genre ?? result.evaluation_context?.profile ?? null);
+    const scoring = calculateProfessionalScore(professionalScores, profile, rawContext, result.author_attribution);
+    const intentStatus = intentProvided
+      ? result.evaluation_context?.intent_status ?? 'unclear'
+      : 'not_provided';
+    return suppressUnsafeCompositeSubjects({
+      ...result,
+      professional_scores: professionalScores,
+      overall_score: scoring.adjusted,
+      overall_score_method: 'weighted_context_v1',
+      evaluation_context: {
+        profile: profile.id,
+        profile_label: profile.label,
+        strategy: rawContext.strategy,
+        strategy_confidence: rawContext.strategy_confidence,
+        intent_status: intentStatus,
+        severe_issue: rawContext.severe_issue,
+        floor_applied: scoring.floorApplied,
+        raw_score: scoring.raw,
+      },
+      confidence: {
+        ...result.confidence,
+        overall: scoring.confidence,
+      },
+      score_summary: cleanScoreSummary(result.score_summary),
+    });
+  }
+  return suppressUnsafeCompositeSubjects({
     ...result,
     overall_score: calculateOverallScore(result.dimension_scores),
     score_summary: cleanScoreSummary(result.score_summary),
-  };
+  });
 }
 
 export type StoredAnalysis = {

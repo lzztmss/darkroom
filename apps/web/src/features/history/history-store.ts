@@ -5,6 +5,15 @@ const DATABASE_VERSION = 1;
 const STORE_NAME = 'analyses';
 const MAX_HISTORY_ITEMS = 30;
 
+// Keep this address stable so local browser data survives normal project-folder
+// migrations. `localhost` and `127.0.0.1` are different browser origins.
+export const DEFAULT_LOCAL_ORIGIN = 'http://127.0.0.1:4174';
+
+export function getHistoryOriginHint(currentOrigin: string): string | null {
+  if (!currentOrigin || currentOrigin === DEFAULT_LOCAL_ORIGIN) return null;
+  return `历史记录按网址保存在当前浏览器。你之前如果使用过 ${DEFAULT_LOCAL_ORIGIN}，请回到那个地址查看；迁移项目文件夹本身不会删除原记录。`;
+}
+
 export type AnalysisHistoryRecord = StoredAnalysis & {
   id: string;
   createdAt: string;
