@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChangeEvent, useEffect, useState } from 'react';
+import { ChangeEvent, useEffect, useRef, useState } from 'react';
 import { ANALYSIS_STORAGE_KEY, StoredAnalysis } from '../analysis/contract';
 import { saveAnalysisHistory } from '../history/history-store';
 import { formatFileSize, PreparedImage, prepareImage } from '../upload/image-processing';
@@ -20,6 +20,10 @@ export function AnalysisForm() {
   const [phase, setPhase] = useState<'idle' | 'preparing' | 'analyzing' | 'validating'>('idle');
   const [error, setError] = useState('');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const abortRef = useRef<AbortController | null>(null);
+  const requestLockRef = useRef(false);
+  const requestIdRef = useRef<string | null>(null);
+  const requestFingerprintRef = useRef<string | null>(null);
 
   const busy = phase !== 'idle';
   const waiting = phase === 'analyzing' || phase === 'validating';
@@ -31,11 +35,23 @@ export function AnalysisForm() {
         ? '正在整理点评…'
       : '开始分析';
 
+  const waitMessage = elapsedSeconds >= 60
+    ? '模型仍在处理复杂画面。你可以继续等待，也可以取消后稍后重试。'
+    : elapsedSeconds >= 30
+      ? '画面关系较多，正在交叉检查主体、线条和评分证据。'
+      : elapsedSeconds >= 10
+        ? '正在整理画面证据和可执行建议。通常还需要一点时间。'
+        : '已压缩分析输入，正在读取画面。';
+
   useEffect(() => {
     if (!waiting) return;
     const timer = window.setInterval(() => setElapsedSeconds((value) => value + 1), 1000);
     return () => window.clearInterval(timer);
   }, [waiting]);
+
+  useEffect(() => () => {
+    abortRef.current?.abort();
+  }, []);
 
   async function selectPhoto(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -49,7 +65,8 @@ export function AnalysisForm() {
       setPhotoName(prepared.name.replace(/\.[^.]+$/u, ''));
     } catch (caught) {
       setImage(null);
-      setError(caught instanceof Error ? caught.message : '无法处理这张图片');
+      const message = caught instanceof Error ? caught.message : '无法处理这张图片';
+      setError(`照片格式问题：${message}`);
     } finally {
       setPhase('idle');
     }
@@ -62,15 +79,27 @@ export function AnalysisForm() {
   }
 
   async function startAnalysis() {
-    if (!image || busy) return;
+    if (!image || busy || requestLockRef.current) return;
     const displayName = photoName.trim() || image.name.replace(/\.[^.]+$/u, '');
+    const requestFingerprint = JSON.stringify({ image: image.dataUrl, category, intent, focus });
+    if (requestFingerprintRef.current !== requestFingerprint || !requestIdRef.current) {
+      requestFingerprintRef.current = requestFingerprint;
+      requestIdRef.current = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
+    requestLockRef.current = true;
     setElapsedSeconds(0);
     setPhase('analyzing');
     setError('');
     try {
       const response = await fetch('/api/analyze', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-analysis-request-id': requestIdRef.current,
+        },
+        signal: controller.signal,
         body: JSON.stringify({
           image: {
             dataUrl: image.dataUrl,
@@ -82,7 +111,13 @@ export function AnalysisForm() {
         }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || '分析失败，请稍后重试');
+      if (!response.ok) {
+        const message = String(payload.error || '分析失败，请稍后重试');
+        if (response.status === 422) throw new Error(`照片格式或内容不完整：${message}`);
+        if (response.status === 429 || /额度|quota|限额/iu.test(message)) throw new Error(`分析额度暂时不可用：${message}`);
+        if (response.status >= 500 || /模型|网络|超时|服务/iu.test(message)) throw new Error(`模型或网络暂时不可用：${message}`);
+        throw new Error(message);
+      }
       setPhase('validating');
       const storedAnalysis: StoredAnalysis = {
         result: payload.result,
@@ -102,9 +137,23 @@ export function AnalysisForm() {
       }
       router.push('/result');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '分析失败，请稍后重试');
+      if (caught instanceof Error && caught.name === 'AbortError') {
+        setError('已取消分析。照片、意图和选项都已保留，可以再次开始。');
+      } else if (caught instanceof TypeError) {
+        setError('网络连接暂时不可用。照片、意图和选项都已保留，请重试。');
+      } else {
+        setError(caught instanceof Error ? caught.message : '分析失败，请稍后重试');
+      }
       setPhase('idle');
+    } finally {
+      abortRef.current = null;
+      requestLockRef.current = false;
     }
+  }
+
+  function cancelAnalysis() {
+    if (!waiting) return;
+    abortRef.current?.abort();
   }
 
   return (
@@ -189,11 +238,16 @@ export function AnalysisForm() {
             ))}
           </div>
 
-          {error && <p className="analysis-error" role="alert">{error}</p>}
-          <button aria-label={buttonLabel} className={`analysis-action${waiting ? ' is-analyzing' : ''}`} disabled={!image || busy} onClick={startAnalysis} type="button">
-            <span>{buttonLabel}{waiting ? ` · ${elapsedSeconds} 秒` : ''}</span><i aria-hidden="true" />
-          </button>
-          {waiting && <p className="analysis-wait-note">已压缩分析输入；本地默认关闭模型深度思考，复杂画面仍可能需要几十秒，请不要重复提交。</p>}
+          <div className="analysis-submit-bar">
+            {error && <p className="analysis-error" role="alert">{error}</p>}
+            <button aria-label={buttonLabel} className={`analysis-action${waiting ? ' is-analyzing' : ''}`} disabled={!image || busy} onClick={startAnalysis} type="button">
+              <span>{buttonLabel}{waiting ? ` · ${elapsedSeconds} 秒` : ''}</span><i aria-hidden="true" />
+            </button>
+            {waiting && <>
+              <p className="analysis-wait-note" aria-live="polite">{waitMessage}</p>
+              <button className="analysis-cancel" onClick={cancelAnalysis} type="button">取消分析</button>
+            </>}
+          </div>
           <p className="analysis-consent">只发送压缩分析副本。原图不修改；公开展示和模型改进默认关闭。</p>
         </section>
       </div>

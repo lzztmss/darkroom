@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { AnalysisRequest, normalizeAnalysisResult } from '../../features/analysis/contract';
+import { AnalysisRequest, normalizeAnalysisResult, normalizeAuthorAttribution } from '../../features/analysis/contract';
 
 const DEFAULT_MODEL = 'qwen3.7-plus-2026-05-26';
 const DEFAULT_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
@@ -59,7 +59,7 @@ export function buildPrompt(request: AnalysisRequest): string {
     ? 'subjective_judgments 返回 2～3 条，至少一条必须明确回应用户创作意图：指出哪些画面证据支持或削弱该意图，并提供另一种合理解读。'
     : 'subjective_judgments 返回 2 条；用户未填写创作意图，不得虚构、猜测或代写意图。';
   return `
-请分析这张照片，摄影语境是“${genre || '不确定'}”。照片文件名、EXIF 和上传来源不属于分析依据，不要尝试从中推断作者、作品或拍摄背景。
+请分析这张照片，摄影语境是“${genre || '不确定'}”。先完成作者与作品识别，再在识别结果给出的摄影语境中评价画面。照片文件名、EXIF 和上传来源不属于分析依据，不能把文件名当作作者线索。
 这是摄影分析，不是生成或修改照片。只返回 JSON，不要 Markdown 代码围栏。
 model.prompt_version 必须为 "${PROMPT_VERSION}"。
 所有用户可见文本必须使用简体中文，包括 label、rationale、omit_reason、evidence、suggestion、观察、解释和建议。
@@ -71,7 +71,8 @@ subjective_judgments（主观判断和 alternative_reading）和 suggestions（�
 没有可靠主体、引导线或裁切时，明确返回 omit，不要为了满足格式乱画。
 引导线不只指“消失点线”，也可以是结构性引导或框景线：道路、轨道、栏杆、金属管线、弧线、
 光带或重复边缘，只要它们从近景进入中景、形成连续观看路径、包围主体或组织多个视觉层次，
-就可以 draw。普通裂缝、接缝、纹理、地平线或仅仅存在的斜线，如果没有方向、连续性或构图作用，才返回 omit。
+就可以 draw；但引导线只有置信度达到 0.85 才能 draw。普通裂缝、接缝、纹理、地平线或仅仅存在的斜线，
+如果没有方向、连续性或构图作用，才返回 omit。
 裁切默认返回 omit。只有主体明确、创作意图不会被破坏、置信度至少 0.75，且实际裁掉
 不超过画面面积 25% 时才可 draw；loss_ratio 必须是被裁掉的画面面积比例小数，0.25 表示 25%，绝不能填写 25 或超过 0.25；街拍、复合构图或主体不明确时优先保留原构图。
 主体框必须完整包住主体的可见范围，可留少量边距，不能只框住头部或主体的一部分；
@@ -92,6 +93,7 @@ score_summary 只描述这张照片的具体观察和解读，不得出现“总
 “若希望增加景深，可尝试缩小光圈（提高 f 值）”；“若现场确实使用闪光，可尝试降低输出或改变入射方向”。
 每个建议必须回答改什么、为什么、如何验证；不要新增、移除或替换真实物体。
 professional_scores 必须严格包含以下 7 个维度，各出现一次：intent_fit、visual_structure、content_narrative、light_color、timing_relationship、craft、voice_originality。每项使用 0 到 100 的整数百分制，并提供具体证据、短建议和置信度。
+author_attribution 必须返回作者识别结果：status 只能是 identified、possible 或 unknown；primary_name 可以为 null；candidates 最多 3 个，每个包含 name、work、confidence、evidence；confidence 为总体置信度；source 使用 visual_match。只有画面风格、构图、用光、色彩或已知作品特征形成多项相互印证的视觉证据时才使用 identified，置信度至少 0.82；只有相似风格时使用 possible；没有可靠依据时使用 unknown 和空 candidates。不要猜测，不要因为用户期待而填入著名摄影师。identified 且置信度足够时，voice_originality 要明确说明与该作者已知方法的相似或差异；服务端会将这一维度对总体评分的影响限制在最多 3 分。
 评分锚点：0=没有证据或不适用，1（约 25）=主要表达被明显削弱，2（约 50）=部分成立，3（约 75）=明确成立，4（约 90）=在当前语境下高度完成。可以使用 0 到 100 细化，但不能因为复杂、遮挡、边缘截断、暗部较深或主体不居中就自动扣分；只有这些现象与画面策略或意图冲突，并且有具体证据时才扣分。
 未填写创作意图时，intent_fit.score 必须为 0、confidence 必须为 0，并在 evidence 中写明“未提供创作意图，暂不评估”；不允许用 0 分表示照片失败。
 如果某个维度不适用于该类型，score 使用 0、confidence 使用 0，并说明“不适用于当前语境”；校准器会从总体计算中排除该维度。
@@ -109,6 +111,19 @@ ${intentInstruction}
 
 JSON Schema：
 ${readWorkbenchSchema()}
+`;
+}
+
+export function buildAuthorRecognitionPrompt(request: AnalysisRequest): string {
+  return `
+请只做一次谨慎的摄影作品来源识别。你可以提出摄影师或具体作品候选，但不能把风格相似当成事实。
+只返回 JSON，不要 Markdown。不要依据文件名、EXIF、上传来源或用户期待猜测。
+只有多项可见的构图、用光、色彩、场景组织或已知作品特征相互印证，才使用 identified，且总体置信度至少 0.82；
+只有单一风格相似时使用 possible；证据不足时使用 unknown 并返回空 candidates。
+返回对象格式：
+{"status":"identified|possible|unknown","primary_name":"摄影师姓名或 null","candidates":[{"name":"姓名","work":"作品名或 null","confidence":0到1,"evidence":"具体视觉证据"}],"confidence":0到1,"evidence":"一句具体证据","source":"visual_match"}
+最多返回 3 个候选。艺术家姓名和作品名可以保留英文，但 evidence 必须用简体中文。
+摄影语境：${request.context.genre || '不确定'}。
 `;
 }
 
@@ -158,14 +173,16 @@ export function parseModelJson(content: string): unknown {
   throw new Error('模型返回格式不完整，请重新分析');
 }
 
-async function requestOnce(request: AnalysisRequest, config: ModelConfig, correction = ''): Promise<string> {
+async function requestOnce(request: AnalysisRequest, config: ModelConfig, correction = '', externalSignal?: AbortSignal, promptText = buildPrompt(request), maxTokens = 3200): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const abortFromRequest = () => controller.abort();
+  externalSignal?.addEventListener('abort', abortFromRequest, { once: true });
   try {
     const enableThinking = process.env.PHOTO_MENTOR_ENABLE_THINKING === 'true';
     const body: Record<string, unknown> = {
       model: config.model,
-      max_tokens: 3200,
+      max_tokens: maxTokens,
       messages: [
         {
           role: 'system',
@@ -175,7 +192,7 @@ async function requestOnce(request: AnalysisRequest, config: ModelConfig, correc
           role: 'user',
           content: [
             { type: 'image_url', image_url: { url: request.image.dataUrl } },
-            { type: 'text', text: `${buildPrompt(request)}${correction}` },
+            { type: 'text', text: `${promptText}${correction}` },
           ],
         },
       ],
@@ -207,14 +224,16 @@ async function requestOnce(request: AnalysisRequest, config: ModelConfig, correc
     return content;
   } finally {
     clearTimeout(timeout);
+    externalSignal?.removeEventListener('abort', abortFromRequest);
   }
 }
 
-async function requestWithNetworkRetry(request: AnalysisRequest, config: ModelConfig, correction: string) {
+async function requestWithNetworkRetry(request: AnalysisRequest, config: ModelConfig, correction: string, externalSignal?: AbortSignal, promptText = buildPrompt(request), maxTokens = 3200) {
   try {
-    return await requestOnce(request, config, correction);
+    return await requestOnce(request, config, correction, externalSignal, promptText, maxTokens);
   } catch (error) {
-    if (error instanceof TypeError) return requestOnce(request, config, correction);
+    if (externalSignal?.aborted) throw error;
+    if (error instanceof TypeError) return requestOnce(request, config, correction, externalSignal, promptText, maxTokens);
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('本次分析等待超过 150 秒，请稍后重试');
     }
@@ -222,10 +241,31 @@ async function requestWithNetworkRetry(request: AnalysisRequest, config: ModelCo
   }
 }
 
-function normalizeModelResponse(content: string, config: ModelConfig, request: AnalysisRequest) {
-  const parsed = parseModelJson(content);
+async function recognizeAuthor(request: AnalysisRequest, config: ModelConfig, signal?: AbortSignal) {
   try {
-    const result = normalizeAnalysisResult(parsed, {
+    const content = await requestWithNetworkRetry(request, config, '', signal, buildAuthorRecognitionPrompt(request), 900);
+    const attribution = normalizeAuthorAttribution(parseModelJson(content));
+    return attribution.status === 'unknown' ? null : attribution;
+  } catch {
+    return null;
+  }
+}
+
+function chooseAuthorAttribution(primary: ReturnType<typeof normalizeAuthorAttribution>, dedicated: ReturnType<typeof normalizeAuthorAttribution> | null) {
+  if (!dedicated) return primary;
+  if (dedicated.status === 'identified' && dedicated.confidence >= primary.confidence) return dedicated;
+  if (primary.status === 'unknown') return dedicated;
+  if (dedicated.status === 'possible' && primary.status === 'possible' && dedicated.confidence > primary.confidence) return dedicated;
+  return primary;
+}
+
+function normalizeModelResponse(content: string, config: ModelConfig, request: AnalysisRequest, dedicatedAuthor: ReturnType<typeof normalizeAuthorAttribution> | null = null) {
+  const parsed = parseModelJson(content);
+  const withAuthor = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+    ? { ...(parsed as Record<string, unknown>), author_attribution: chooseAuthorAttribution(normalizeAuthorAttribution((parsed as Record<string, unknown>).author_attribution), dedicatedAuthor) }
+    : parsed;
+  try {
+    const result = normalizeAnalysisResult(withAuthor, {
       genre: request.context.genre,
       intentProvided: Boolean(request.context.intent.trim()),
     });
@@ -246,7 +286,7 @@ function normalizeModelResponse(content: string, config: ModelConfig, request: A
   }
 }
 
-export async function analyzeWithQwen(request: AnalysisRequest) {
+export async function analyzeWithQwen(request: AnalysisRequest, signal?: AbortSignal) {
   const config = getModelConfig();
   if (!config.apiKey) {
     const keyNames = config.provider === 'deepseek'
@@ -255,15 +295,18 @@ export async function analyzeWithQwen(request: AnalysisRequest) {
     throw new Error(`本地服务缺少 ${keyNames}`);
   }
   const startedAt = Date.now();
+  // The focused source pass runs beside the full critique, so recognition is
+  // more reliable without adding a full extra round trip to the wait time.
+  const dedicatedAuthorPromise = recognizeAuthor(request, config, signal);
 
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const correction = attempt === 0
       ? ''
       : '\n上一轮输出未能通过本地 JSON/schema 校验。请重新生成一个完整的 JSON 对象，只返回 JSON，不要 Markdown、解释文字或省略字段；不确定的主体、引导线和裁切请使用 decision=omit。';
-    const content = await requestWithNetworkRetry(request, config, correction);
+    const content = await requestWithNetworkRetry(request, config, correction, signal);
     try {
-      const normalized = normalizeModelResponse(content, config, request);
+      const normalized = normalizeModelResponse(content, config, request, await dedicatedAuthorPromise);
       console.info('[analysis-timing]', JSON.stringify({
         model: normalized.model.name,
         input_bytes: Math.round(request.image.dataUrl.length * 0.75),

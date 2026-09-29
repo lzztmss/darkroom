@@ -48,6 +48,22 @@ const ProfessionalScoresSchema = z.array(ProfessionalDimensionItemSchema).length
 
 export const ProfessionalDimensionSchema = ProfessionalDimensionItemSchema;
 
+const AuthorCandidateSchema = z.object({
+  name: z.string().min(1),
+  work: z.string().nullable().default(null),
+  confidence: Unit,
+  evidence: z.string().min(1),
+});
+
+export const AuthorAttributionSchema = z.object({
+  status: z.enum(['identified', 'possible', 'unknown']),
+  primary_name: z.string().nullable(),
+  candidates: z.array(AuthorCandidateSchema).max(3),
+  confidence: Unit,
+  evidence: z.string().min(1),
+  source: z.enum(['visual_match', 'user_provided', 'authorized_catalog']),
+});
+
 export const EvaluationContextSchema = z.object({
   profile: z.string().min(1).default('general'),
   profile_label: z.string().min(1).default('通用摄影阅读'),
@@ -74,6 +90,7 @@ export const AnalysisResultSchema = z.object({
   score_summary: z.string().min(1),
   dimension_scores: z.array(DimensionSchema).length(5),
   professional_scores: ProfessionalScoresSchema.optional(),
+  author_attribution: AuthorAttributionSchema.optional(),
   evaluation_context: EvaluationContextSchema.optional(),
   subject_boxes: z.array(DecisionBase.extend({ box: Box.nullable() })).min(1),
   leading_lines: z.array(DecisionBase.extend({
@@ -154,6 +171,48 @@ export function normalizePreservesIntent(value: unknown): string {
   if (value === false) return '可能改变创作意图';
   if (typeof value === 'string' && value.trim()) return value;
   return '未提供足够说明';
+}
+
+const UNKNOWN_AUTHOR_ATTRIBUTION = {
+  status: 'unknown' as const,
+  primary_name: null,
+  candidates: [],
+  confidence: 0,
+  evidence: '没有足够的视觉证据确认作者或具体作品。',
+  source: 'visual_match' as const,
+};
+
+export function normalizeAuthorAttribution(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return UNKNOWN_AUTHOR_ATTRIBUTION;
+  const source = value as Record<string, unknown>;
+  const candidates = Array.isArray(source.candidates)
+    ? source.candidates
+      .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object'))
+      .slice(0, 3)
+      .map((item) => ({
+        name: typeof item.name === 'string' && item.name.trim() ? item.name.trim() : '未命名作者',
+        work: typeof item.work === 'string' && item.work.trim() ? item.work.trim() : null,
+        confidence: Math.max(0, Math.min(1, Number(item.confidence) || 0)),
+        evidence: typeof item.evidence === 'string' && item.evidence.trim() ? item.evidence : '未提供具体视觉依据',
+      }))
+    : [];
+  const status = source.status === 'identified' || source.status === 'possible' ? source.status : 'unknown';
+  const confidence = Math.max(0, Math.min(1, Number(source.confidence) || 0));
+  const primaryName = typeof source.primary_name === 'string' && source.primary_name.trim()
+    ? source.primary_name.trim()
+    : candidates[0]?.name ?? null;
+  const sourceName = source.source === 'user_provided' || source.source === 'authorized_catalog'
+    ? source.source
+    : 'visual_match';
+  const trustedStatus = status === 'identified' && confidence < 0.82 ? 'possible' : status;
+  return {
+    status: trustedStatus,
+    primary_name: trustedStatus === 'unknown' ? null : primaryName,
+    candidates,
+    confidence,
+    evidence: typeof source.evidence === 'string' && source.evidence.trim() ? source.evidence : UNKNOWN_AUTHOR_ATTRIBUTION.evidence,
+    source: sourceName,
+  } as const;
 }
 
 export function normalizeScoreScale(scores: number[]): number[] {
@@ -326,10 +385,14 @@ function normalizeModelShape(input: unknown): unknown {
       : value.leading_lines.map((item) => {
         if (!item || typeof item !== 'object') return item;
         const source = item as Record<string, unknown>;
+        const lowConfidence = source.decision === 'draw' && Number(source.confidence) < 0.85;
         return {
           ...source,
-          points: source.decision === 'omit' ? null : source.points,
-          omit_reason: normalizeOmitReason(source, '模型未提供可靠引导线，已隐藏线条'),
+          decision: lowConfidence ? 'omit' : source.decision,
+          points: source.decision === 'omit' || lowConfidence ? null : source.points,
+          omit_reason: lowConfidence
+            ? '引导线置信度低于 85%，已隐藏线条'
+            : normalizeOmitReason(source, '模型未提供可靠引导线，已隐藏线条'),
         };
       })
     : value.leading_lines;
@@ -386,6 +449,7 @@ function normalizeModelShape(input: unknown): unknown {
     ...value,
     schema_version: '1.0.0',
     professional_scores: professionalScores ?? value.professional_scores,
+    author_attribution: normalizeAuthorAttribution(value.author_attribution),
     overall_score: normalizedScores.length === 5
       ? Math.round(normalizedScores.reduce((sum, score) => sum + score, 0) / 5)
       : Math.round(Number(value.overall_score)),
@@ -447,7 +511,7 @@ export function normalizeAnalysisResult(input: unknown, options: { genre?: strin
       result.evaluation_context ?? inferFallbackEvaluationContext(result, options.genre),
     );
     const profile = getProfessionalProfile(options.genre ?? result.evaluation_context?.profile ?? null);
-    const scoring = calculateProfessionalScore(professionalScores, profile, rawContext);
+    const scoring = calculateProfessionalScore(professionalScores, profile, rawContext, result.author_attribution);
     const intentStatus = intentProvided
       ? result.evaluation_context?.intent_status ?? 'unclear'
       : 'not_provided';

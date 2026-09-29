@@ -40,21 +40,21 @@ beforeEach(() => {
   }));
 });
 
-it('shows the professional dimensions and separates unassessed items from low scores', async () => {
+it('shows five clear dimensions without repeating the facts panel', async () => {
   render(<ResultPage />);
-  expect(await screen.findByText('快速索引')).toBeVisible();
-  expect(screen.getAllByRole('progressbar')).toHaveLength(6);
-  expect(screen.getByRole('checkbox', { name: '主体框' })).toBeChecked();
-  expect(screen.getByRole('checkbox', { name: '引导线' })).toBeChecked();
-  expect(screen.getByRole('checkbox', { name: '裁切框' })).toBeChecked();
+  expect(await screen.findByText('综合参考')).toBeVisible();
+  expect(screen.queryByText('现在该做什么')).not.toBeInTheDocument();
+  expect(screen.getByText('来源线索：暂未找到可靠的作者或具体作品匹配。')).toBeVisible();
+  expect(screen.queryByText('作者识别')).not.toBeInTheDocument();
+  expect(screen.getAllByRole('progressbar')).toHaveLength(5);
+  expect(screen.getByRole('checkbox', { name: '主体框' })).not.toBeChecked();
+  expect(screen.getByRole('checkbox', { name: '引导线' })).not.toBeChecked();
+  expect(screen.getByRole('checkbox', { name: '裁切框' })).not.toBeChecked();
   expect(screen.getByText('结构化分析 · 工作台规则已通过校验。')).toBeVisible();
-  expect(screen.getByText('视觉结构与观看路径')).toBeVisible();
-  expect(screen.getByRole('progressbar', { name: '视觉结构与观看路径 85 分' }).closest('article')).toHaveClass('workbench-dimension--high');
-  expect(screen.getByRole('progressbar', { name: '光线、色彩与影调 75 分' }).closest('article')).toHaveClass('workbench-dimension--mid');
-  expect(screen.getByRole('progressbar', { name: '技术与制作选择 51 分' }).closest('article')).toHaveClass('workbench-dimension--low');
-  expect(screen.getByText('意图与语境完成度').closest('article')).toHaveClass('workbench-dimension--unrated');
-  expect(screen.getByText('未评估')).toBeVisible();
-  expect(screen.queryByRole('progressbar', { name: /意图与语境完成度/ })).not.toBeInTheDocument();
+  expect(screen.getByRole('progressbar', { name: '构图 85 分' }).closest('article')).toHaveClass('workbench-dimension--high');
+  expect(screen.getByRole('progressbar', { name: '光线 75 分' }).closest('article')).toHaveClass('workbench-dimension--mid');
+  expect(screen.getByRole('progressbar', { name: '技术质量 0 分' }).closest('article')).toHaveClass('workbench-dimension--low');
+  expect(screen.queryByText('意图与语境完成度')).not.toBeInTheDocument();
   expect(screen.getByText(/评价语境：街头 \/ 纪实 · 画面策略：复合关系与开放歧义/)).toBeVisible();
   expect(screen.getByAltText('p1.jpg 的完整分析图')).toHaveAttribute('src', 'blob:original-photo');
   expect(screen.getByRole('link', { name: '首页' })).toHaveAttribute('href', '/');
@@ -62,15 +62,13 @@ it('shows the professional dimensions and separates unassessed items from low sc
   expect(screen.getByRole('link', { name: '历史记录' })).toBeVisible();
   expect(screen.queryByText('本次分析')).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: '重新选择照片' })).not.toBeInTheDocument();
-  expect(screen.getByText('观察事实')).toBeVisible();
+  expect(screen.queryByText('观察事实')).not.toBeInTheDocument();
   expect(screen.queryByText(/不画「/)).not.toBeInTheDocument();
   expect(screen.getByText('本次创作意图')).toBeVisible();
   expect(screen.getByText('尝试模仿森山大道的高反差街头感')).toBeVisible();
   expect(screen.queryByText('保留边缘')).not.toBeInTheDocument();
   expect(screen.queryByText(/总分由五个分项/)).not.toBeInTheDocument();
-  expect(screen.getByText('可直接观察的事实').closest('.workbench-review-layout')).toBe(
-    screen.getByLabelText('照片分析结果').closest('.workbench-review-layout'),
-  );
+  expect(screen.getByText('基于摄影知识的解释')).toBeVisible();
 });
 
 it('saves a reusable human evaluation without storing the photo', async () => {

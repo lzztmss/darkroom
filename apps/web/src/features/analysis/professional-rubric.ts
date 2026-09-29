@@ -127,6 +127,12 @@ export type ProfessionalScoreResult = {
   confidence: number;
   floorApplied: boolean;
   floor: number | null;
+  authorAdjustment: number;
+};
+
+export type AuthorInfluence = {
+  status: 'identified' | 'possible' | 'unknown';
+  confidence: number;
 };
 
 export function getProfessionalProfile(genre?: string | null): ProfessionalProfile {
@@ -144,6 +150,7 @@ export function calculateProfessionalScore(
   scores: ProfessionalScoreInput[],
   profile: ProfessionalProfile,
   context: EvaluationContext,
+  author?: AuthorInfluence,
 ): ProfessionalScoreResult {
   let weightedTotal = 0;
   let activeWeight = 0;
@@ -157,13 +164,27 @@ export function calculateProfessionalScore(
     confidenceTotal += score.confidence * weight;
   }
 
-  const raw = activeWeight > 0 ? Math.round(weightedTotal / activeWeight) : 0;
+  const weightedScore = activeWeight > 0 ? Math.round(weightedTotal / activeWeight) : 0;
+  const voiceScore = scores.find((score) => score.dimension === 'voice_originality');
+  // A confident visual attribution changes how much the author's voice is
+  // considered, but can only move the result by three points. A guess never
+  // changes the score.
+  const authorAdjustment = author?.status === 'identified'
+    && author.confidence >= 0.82
+    && voiceScore
+    && voiceScore.confidence > 0
+    ? Math.max(-3, Math.min(3, Math.round((voiceScore.score - 50) / 20)))
+    : 0;
   const confidence = activeWeight > 0 ? confidenceTotal / activeWeight : 0;
   const canProtectConfidence = !context.severe_issue
     && context.strategy !== 'unclear'
     && context.strategy_confidence >= 0.55
     && confidence >= 0.55;
-  const floor = canProtectConfidence ? 70 : null;
+  // A small calibration lift keeps coherent photographs from clustering at
+  // the discouraging edge of the scale while preserving evidenced low scores.
+  const calibrationLift = canProtectConfidence && weightedScore >= 70 ? 2 : 0;
+  const raw = Math.max(0, Math.min(100, weightedScore + authorAdjustment + calibrationLift));
+  const floor = canProtectConfidence ? 72 : null;
   const adjusted = floor !== null ? Math.max(raw, floor) : raw;
 
   return {
@@ -172,6 +193,7 @@ export function calculateProfessionalScore(
     confidence,
     floorApplied: floor !== null && adjusted !== raw,
     floor,
+    authorAdjustment,
   };
 }
 

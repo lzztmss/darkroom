@@ -24,8 +24,8 @@ describe('professional photography rubric', () => {
       { strategy: 'layered_ambiguous', strategy_confidence: 0.82, severe_issue: false },
     );
 
-    expect(result.raw).toBe(76);
-    expect(result.adjusted).toBe(76);
+    expect(result.raw).toBe(78);
+    expect(result.adjusted).toBe(78);
     expect(result.floorApplied).toBe(false);
   });
 
@@ -37,7 +37,7 @@ describe('professional photography rubric', () => {
     );
 
     expect(result.raw).toBe(58);
-    expect(result.adjusted).toBe(70);
+    expect(result.adjusted).toBe(72);
     expect(result.floorApplied).toBe(true);
   });
 
@@ -59,7 +59,36 @@ describe('professional photography rubric', () => {
       { strategy: 'environmental_portrait', strategy_confidence: 0.6, severe_issue: false },
     );
 
-    expect(result.adjusted).toBe(70);
+    expect(result.adjusted).toBe(72);
     expect(result.floorApplied).toBe(true);
+  });
+
+  it('lets a confident author match influence the score within a small cap', () => {
+    const result = calculateProfessionalScore(
+      PROFESSIONAL_DIMENSIONS.map((dimension) => ({
+        dimension,
+        score: dimension === 'voice_originality' ? 90 : 70,
+        confidence: 0.8,
+      })),
+      getProfessionalProfile('街头'),
+      { strategy: 'layered_ambiguous', strategy_confidence: 0.82, severe_issue: false },
+      { status: 'identified', confidence: 0.9 },
+    );
+
+    expect(result.authorAdjustment).toBe(2);
+    expect(result.raw).toBe(75);
+    expect(result.adjusted).toBe(75);
+  });
+
+  it('does not let a possible author guess change the score', () => {
+    const result = calculateProfessionalScore(
+      PROFESSIONAL_DIMENSIONS.map((dimension) => ({ dimension, score: 70, confidence: 0.8 })),
+      getProfessionalProfile('街头'),
+      { strategy: 'layered_ambiguous', strategy_confidence: 0.82, severe_issue: false },
+      { status: 'possible', confidence: 0.9 },
+    );
+
+    expect(result.authorAdjustment).toBe(0);
+    expect(result.raw).toBe(72);
   });
 });

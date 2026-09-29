@@ -40,7 +40,7 @@ it('lists locally saved analyses and opens a selected critique', async () => {
   render(<HistoryExperience />);
 
   expect(await screen.findByRole('heading', { name: 'street.jpg' })).toBeVisible();
-  expect(screen.getByText('街头 · 快速索引 82')).toBeVisible();
+  expect(screen.getByText('街头 · 综合参考 82')).toBeVisible();
   await user.click(screen.getByRole('button', { name: '查看点评' }));
 
   expect(pushMock).toHaveBeenCalledWith('/result');

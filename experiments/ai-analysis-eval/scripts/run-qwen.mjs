@@ -42,7 +42,7 @@ const prompt = `
 
 必须严格区分 observations（可直接观察事实）、interpretations（摄影知识解释）、
 subjective_judgments（主观判断和 alternative_reading）和 suggestions（可执行建议）。
-坐标要使用 0 到 1 的归一化数值；位置置信度低于 0.55 时必须 decision=omit，几何字段为 null。
+坐标要使用 0 到 1 的归一化数值；主体框位置置信度低于 0.55 时必须 decision=omit；引导线置信度低于 0.85 时必须 decision=omit，几何字段为 null。
 没有可靠主体、引导线或裁切时，明确返回 omit，不要为了满足格式乱画。
 每个建议必须回答改什么、为什么、如何验证；不要新增、移除或替换真实物体。
 

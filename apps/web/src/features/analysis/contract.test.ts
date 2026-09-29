@@ -131,6 +131,22 @@ describe('analysis contract helpers', () => {
     }));
   });
 
+  it('hides a leading line when its confidence is below 85 percent', () => {
+    const result = normalizeAnalysisResult({
+      ...makeAnalysisInput(),
+      leading_lines: [{
+        id: 'line-1', label: '金属管线', decision: 'draw', rationale: '可能形成方向', confidence: 0.84,
+        omit_reason: null, points: [[0.1, 0.9], [0.8, 0.2]],
+      }],
+    });
+
+    expect(result.leading_lines[0]).toEqual(expect.objectContaining({
+      decision: 'omit',
+      points: null,
+      omit_reason: '引导线置信度低于 85%，已隐藏线条',
+    }));
+  });
+
   it('weights professional dimensions by genre and excludes an unassessed intent', () => {
     const professionalScores = [
       'intent_fit',
@@ -165,7 +181,7 @@ describe('analysis contract helpers', () => {
     }, { genre: '街头', intentProvided: false });
 
     expect(result.overall_score_method).toBe('weighted_context_v1');
-    expect(result.overall_score).toBe(70);
+    expect(result.overall_score).toBe(72);
     expect(result.evaluation_context).toEqual(expect.objectContaining({
       profile: 'street_documentary',
       intent_status: 'not_provided',
@@ -209,16 +225,42 @@ describe('analysis contract helpers', () => {
     const result = normalizeAnalysisResult(input, { genre: '街头', intentProvided: false });
 
     expect(result.overall_score_method).toBe('weighted_context_v1');
-    expect(result.overall_score).toBe(70);
+    expect(result.overall_score).toBe(72);
     expect(result.professional_scores).toHaveLength(7);
     expect(result.subject_boxes.every((item) => item.decision === 'omit')).toBe(true);
     expect(result.confidence.subject_boxes).toBe(0);
 
     const legacyStoredResult = normalizeAnalysisResult({ ...input, evaluation_context: undefined }, { intentProvided: false });
-    expect(legacyStoredResult.overall_score).toBe(70);
+    expect(legacyStoredResult.overall_score).toBe(72);
     expect(legacyStoredResult.evaluation_context).toEqual(expect.objectContaining({
       strategy: 'layered_ambiguous',
       floor_applied: true,
     }));
+  });
+
+  it('defaults author recognition to unknown and downgrades an under-threshold claim', () => {
+    const unknown = normalizeAnalysisResult(makeAnalysisInput());
+    expect(unknown.author_attribution).toEqual(expect.objectContaining({
+      status: 'unknown',
+      primary_name: null,
+      confidence: 0,
+    }));
+
+    const possible = normalizeAnalysisResult({
+      ...makeAnalysisInput(),
+      author_attribution: {
+        status: 'identified',
+        primary_name: 'Alex Webb',
+        candidates: [{ name: 'Alex Webb', work: null, confidence: 0.7, evidence: '色彩相似' }],
+        confidence: 0.7,
+        evidence: '只有色彩相似，无法确认作者。',
+        source: 'visual_match',
+      },
+    });
+    expect(possible.author_attribution).toEqual(expect.objectContaining({
+      status: 'possible',
+      primary_name: 'Alex Webb',
+    }));
+    expect(possible.overall_score).toBe(70);
   });
 });

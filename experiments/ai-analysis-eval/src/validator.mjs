@@ -1,4 +1,5 @@
 export const DRAW_THRESHOLD = 0.55;
+export const LINE_DRAW_THRESHOLD = 0.85;
 export const MAX_CROP_LOSS = 0.25;
 
 const DIMENSIONS = [
@@ -59,7 +60,7 @@ function validateBox(box, path, errors) {
   }
 }
 
-function validateDecision(item, path, geometryKey, errors) {
+function validateDecision(item, path, geometryKey, errors, threshold = DRAW_THRESHOLD) {
   if (!["draw", "omit"].includes(item?.decision)) {
     errors.push(`${path}.decision 必须是 draw 或 omit`);
     return;
@@ -71,8 +72,8 @@ function validateDecision(item, path, geometryKey, errors) {
     errors.push(`${path}.rationale 不能为空`);
   }
   if (item.decision === "draw") {
-    if (item.confidence < DRAW_THRESHOLD) {
-      errors.push(`${path} 置信度低于 ${DRAW_THRESHOLD}，必须返回不画`);
+    if (item.confidence < threshold) {
+      errors.push(`${path} 置信度低于 ${threshold}，必须返回不画`);
     }
     if (item[geometryKey] == null) {
       errors.push(`${path}.${geometryKey} 在 draw 时不能为空`);
@@ -249,7 +250,7 @@ export function validateAnalysisResult(input) {
 
   (input.leading_lines ?? []).forEach((item, index) => {
     const path = `leading_lines[${index}]`;
-    validateDecision(item, path, "points", errors);
+    validateDecision(item, path, "points", errors, LINE_DRAW_THRESHOLD);
     if (item.decision === "draw") {
       if (
         !Array.isArray(item.points) ||
@@ -335,11 +336,11 @@ export function validateAnalysisResult(input) {
 
 export function collectRenderableAnnotations(input) {
   const output = [];
-  const add = (items, kind, geometryKey) => {
+  const add = (items, kind, geometryKey, threshold = DRAW_THRESHOLD) => {
     for (const item of items ?? []) {
       if (
         item.decision === "draw" &&
-        item.confidence >= DRAW_THRESHOLD &&
+        item.confidence >= threshold &&
         item[geometryKey] != null
       ) {
         output.push({ kind, ...item });
@@ -347,7 +348,7 @@ export function collectRenderableAnnotations(input) {
     }
   };
   add(input.subject_boxes, "subject", "box");
-  add(input.leading_lines, "line", "points");
+  add(input.leading_lines, "line", "points", LINE_DRAW_THRESHOLD);
   add(input.crop_boxes, "crop", "box");
   return output;
 }

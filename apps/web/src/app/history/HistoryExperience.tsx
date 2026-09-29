@@ -86,7 +86,7 @@ export function HistoryExperience() {
               <div className="history-card-copy">
                 <p>{new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(record.createdAt))}</p>
                 <h2>{record.imageName}</h2>
-                <span>{record.genre || '未指定类型'} · 快速索引 {record.result.overall_score}</span>
+                <span>{record.genre || '未指定类型'} · 综合参考 {record.result.overall_score}</span>
                 <div>
                   <button className="fill-action" onClick={() => openRecord(record)} type="button"><span>查看点评</span></button>
                   <button className="history-delete" onClick={() => void removeRecord(record.id)} type="button">删除</button>

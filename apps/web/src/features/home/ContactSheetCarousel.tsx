@@ -60,7 +60,7 @@ export function ContactSheetCarousel({ slides }: { slides: readonly HistoricalSl
         <div className="contact-sheet__track" style={trackStyle}>
           {slides.map((slide, slideIndex) => (
             <article
-              className="contact-sheet__slide"
+              className={`contact-sheet__slide${slideIndex === index ? ' is-active' : ''}`}
               aria-hidden={slideIndex !== index}
               key={slide.src}
             >

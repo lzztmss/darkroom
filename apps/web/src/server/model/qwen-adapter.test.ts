@@ -64,6 +64,10 @@ function professionalModelResult(score = 58) {
   };
 }
 
+function responseFor(result: unknown) {
+  return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(result) } }] }), { status: 200 });
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
@@ -118,27 +122,44 @@ describe('Qwen workbench prompt', () => {
     });
   });
 
-  it('keeps the normal path to one model request', async () => {
+  it('runs a focused source pass beside the full critique', async () => {
     vi.stubEnv('DASHSCOPE_API_KEY', 'test-key');
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
-      choices: [{ message: { content: JSON.stringify(validModelResult()) } }],
-    }), { status: 200 }));
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(responseFor(validModelResult())));
 
     await analyzeWithQwen(request);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps a confident visual source match in the normalized result', async () => {
+    vi.stubEnv('DASHSCOPE_API_KEY', 'test-key');
+    const sourcePass = {
+      status: 'identified',
+      primary_name: 'Alex Webb',
+      candidates: [{ name: 'Alex Webb', work: 'Untitled', confidence: 0.91, evidence: '多层人物关系与强烈色彩并置形成多项一致线索。' }],
+      confidence: 0.91,
+      evidence: '多层人物关系与强烈色彩并置形成多项一致线索。',
+      source: 'visual_match',
+    };
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+      const body = JSON.parse(String(init?.body));
+      const prompt = body.messages?.[1]?.content?.[1]?.text ?? '';
+      return responseFor(prompt.includes('作品来源识别') ? sourcePass : validModelResult());
+    });
+
+    const result = await analyzeWithQwen(request);
+
+    expect(result.author_attribution).toEqual(expect.objectContaining({ status: 'identified', primary_name: 'Alex Webb' }));
   });
 
   it('derives compatibility scores and applies the street profile to professional output', async () => {
     vi.stubEnv('DASHSCOPE_API_KEY', 'test-key');
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
-      choices: [{ message: { content: JSON.stringify(professionalModelResult()) } }],
-    }), { status: 200 }));
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(responseFor(professionalModelResult())));
 
     const result = await analyzeWithQwen(request);
 
     expect(result.overall_score_method).toBe('weighted_context_v1');
-    expect(result.overall_score).toBe(70);
+    expect(result.overall_score).toBe(72);
     expect(result.evaluation_context).toEqual(expect.objectContaining({
       profile: 'street_documentary',
       floor_applied: true,
@@ -151,13 +172,11 @@ describe('Qwen workbench prompt', () => {
     vi.stubEnv('PHOTO_MENTOR_PROVIDER', 'deepseek');
     vi.stubEnv('DEEPSEEK_API_KEY', 'test-deepseek-key');
     vi.stubEnv('PHOTO_MENTOR_ENABLE_THINKING', 'false');
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
-      choices: [{ message: { content: JSON.stringify(validModelResult()) } }],
-    }), { status: 200 }));
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(responseFor(validModelResult())));
 
     await analyzeWithQwen(request);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('https://api.deepseek.com/chat/completions');
     const body = JSON.parse(String(init?.body));
@@ -169,16 +188,15 @@ describe('Qwen workbench prompt', () => {
   it('retries only after malformed model JSON and accepts the repaired response', async () => {
     vi.stubEnv('DASHSCOPE_API_KEY', 'test-key');
     const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(responseFor(validModelResult()))
       .mockResolvedValueOnce(new Response(JSON.stringify({
         choices: [{ message: { content: '{"schema_version":"1.0.0"' } }],
       }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        choices: [{ message: { content: JSON.stringify(validModelResult()) } }],
-      }), { status: 200 }));
+      .mockResolvedValueOnce(responseFor(validModelResult()));
 
     const result = await analyzeWithQwen(request);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(result.model.prompt_version).toBe('professional-v1');
   });
 });

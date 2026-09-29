@@ -181,6 +181,22 @@ test("rejects drawing a low-confidence annotation", () => {
   assert.ok(result.errors.some((error) => error.includes("低于 0.55")));
 });
 
+test("rejects drawing a leading line below the 85 percent threshold", () => {
+  const input = validResult();
+  input.leading_lines = [{
+    id: "line-low",
+    label: "疑似线条",
+    decision: "draw",
+    points: [[0.1, 0.9], [0.8, 0.2]],
+    rationale: "方向不够稳定。",
+    confidence: 0.84,
+    omit_reason: null,
+  }];
+
+  const result = validateAnalysisResult(input);
+  assert.ok(result.errors.some((error) => error.includes("低于 0.85")));
+});
+
 test("rejects geometry outside normalized coordinates", () => {
   const input = validResult();
   input.subject_boxes[0].box.width = 0.9;

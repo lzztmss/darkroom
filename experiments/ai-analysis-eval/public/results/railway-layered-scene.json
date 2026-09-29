@@ -67,7 +67,7 @@
       "decision": "draw",
       "points": [[0.98, 0.65], [0.77, 0.66], [0.62, 0.61], [0.54, 0.55]],
       "rationale": "右侧弧形轨道从边缘进入并向远处建筑方向收束。",
-      "confidence": 0.78,
+      "confidence": 0.9,
       "omit_reason": null
     }
   ],
@@ -118,7 +118,7 @@
   "confidence": {
     "overall": 0.81,
     "subject_boxes": 0.86,
-    "leading_lines": 0.78,
+    "leading_lines": 0.9,
     "crop_boxes": 0.74
   },
   "safety_flags": []
